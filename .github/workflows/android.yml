@@ -22,7 +22,9 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
       - name: Test, lint, and build
-        run: ./gradlew testDebugUnitTest lintDebug assembleDebug
+        run: |
+          ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
+          ./gradlew --stop
       - name: Enable Android emulator acceleration
         run: sudo chmod a+rw /dev/kvm
       - name: Test playback, torrent transfers and storage on Android 15
@@ -33,8 +35,9 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
           script: |
-            ./gradlew connectedDebugAndroidTest
+            ./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest
             mkdir -p app/build/reports/device-screenshots
             adb pull /sdcard/morrow-library.png app/build/reports/device-screenshots/library.png
             adb pull /sdcard/morrow-player.png app/build/reports/device-screenshots/player.png
