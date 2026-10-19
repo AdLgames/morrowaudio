@@ -31,7 +31,7 @@ BitTorrent requires available peers and exchanges pieces while active; sharing s
 
 Torrent downloads require Android 9 or newer; local playback supports Android 8.
 
-The release APK includes ARM64 and ARMv7 libraries for Samsung phones. Debug builds also include x86_64 for emulator checks.
+The main APK is for ARM64 Samsung phones. For a phone running 32-bit Android, use `dist/MorrowAudio-arm32.apk`. Both use the same signing certificate and version. Build the 32-bit release with `./gradlew -PmorrowArm32 assembleRelease`. Debug builds include ARM64, ARMv7 and x86_64 for emulator checks.
 
 ## Privacy and storage
 

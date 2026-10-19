@@ -27,6 +27,7 @@ public class TorrentIntegrationTest {
     Context ctx = instrumentation.getTargetContext();
     Uri destination =
         DocumentsContract.buildTreeDocumentUri("com.morrow.audio.test.documents", "downloads");
+    grantFolder(ctx, destination);
     DocumentFile parent = DocumentFile.fromTreeUri(ctx, destination);
     assertTrue(parent.canWrite());
     // A synthetic WAV, never public content or a public tracker.
@@ -148,6 +149,7 @@ public class TorrentIntegrationTest {
         DocumentsContract.buildTreeDocumentUri("com.morrow.audio.test.documents", "downloads")
             .toString();
     d.folderName = "Audiobooks";
+    grantFolder(ctx, Uri.parse(d.destination));
     assertTrue(DocumentFile.fromTreeUri(ctx, Uri.parse(d.destination)).canWrite());
     d.hash = "0000000000000000000000000000000000000001";
     d.files.add("Story.wav");
@@ -175,6 +177,15 @@ public class TorrentIntegrationTest {
     assertNull(store.find(d.id));
     assertTrue(folder.listFiles()[0].exists());
     i.runOnMainSync(screen::finish);
+  }
+
+  private static void grantFolder(Context ctx, Uri uri) {
+    ctx.grantUriPermission(
+        ctx.getPackageName(),
+        uri,
+        Intent.FLAG_GRANT_READ_URI_PERMISSION
+            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
   }
 
   private static byte[] torrent(byte[] audio) throws Exception {
