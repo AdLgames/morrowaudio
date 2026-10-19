@@ -1,0 +1,52 @@
+name: Android APK
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 13114758
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test, lint, and build
+        run: ./gradlew testDebugUnitTest lintDebug assembleDebug
+      - name: Enable Android emulator acceleration
+        run: sudo chmod a+rw /dev/kvm
+      - name: Test import and playback on Android 15
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            ./gradlew connectedDebugAndroidTest
+            mkdir -p app/build/reports/device-screenshots
+            adb pull /sdcard/morrow-library.png app/build/reports/device-screenshots/library.png
+            adb pull /sdcard/morrow-player.png app/build/reports/device-screenshots/player.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Morrow-Audio-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-test-reports
+          path: |
+            app/build/reports/device-screenshots/
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
