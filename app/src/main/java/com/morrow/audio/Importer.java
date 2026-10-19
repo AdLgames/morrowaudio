@@ -14,13 +14,25 @@ public final class Importer {
 
   private record Entry(DocumentFile file, String folder, String folderUri, String cover) {}
 
+  // Retain the original tree grant when importing a completed download's child folder.
+  static DocumentFile folderDocument(Context ctx, Uri uri) throws IOException {
+    DocumentFile root = DocumentFile.fromTreeUri(ctx, uri);
+    if (root == null) return null;
+    if (!uri.getPathSegments().contains("document")) return root;
+    String target = android.provider.DocumentsContract.getDocumentId(uri);
+    if (target.equals(android.provider.DocumentsContract.getTreeDocumentId(uri))) return root;
+    for (DocumentFile child : root.listFiles())
+      if (android.provider.DocumentsContract.getDocumentId(child.getUri()).equals(target))
+        return child;
+    throw new IOException("The saved audiobook folder was moved or is no longer accessible.");
+  }
+
   public static Result scan(Context ctx, List<Uri> uris, boolean tree, Consumer<String> progress)
       throws Exception {
     List<Entry> entries = new ArrayList<>();
     List<String> warnings = new ArrayList<>();
     for (Uri uri : uris) {
-      DocumentFile d =
-          tree ? DocumentFile.fromTreeUri(ctx, uri) : DocumentFile.fromSingleUri(ctx, uri);
+      DocumentFile d = tree ? folderDocument(ctx, uri) : DocumentFile.fromSingleUri(ctx, uri);
       if (d == null) continue;
       if (tree) walk(d, entries, 0, warnings);
       else if (audio(d.getName())) entries.add(new Entry(d, "Imported books", "files", ""));
