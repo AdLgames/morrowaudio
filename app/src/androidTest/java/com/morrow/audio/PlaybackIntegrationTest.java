@@ -127,6 +127,26 @@ public class PlaybackIntegrationTest {
     assertEquals("A quiet thought", restored.bookmarks.get(0).note);
     instrumentation.runOnMainSync(
         () -> {
+          controller.seekTo(2, Math.max(0, b.chapters.get(2).duration - 200));
+          controller.play();
+        });
+    await(instrumentation, () -> controller.getPlaybackState() == Player.STATE_ENDED, 10000);
+    AtomicReference<com.google.common.util.concurrent.ListenableFuture<SessionResult>> snapshot =
+        new AtomicReference<>();
+    instrumentation.runOnMainSync(
+        () ->
+            snapshot.set(
+                controller.sendCustomCommand(
+                    new SessionCommand(PlaybackService.SNAPSHOT, Bundle.EMPTY), Bundle.EMPTY)));
+    assertEquals(SessionResult.RESULT_SUCCESS, snapshot.get().get(10, TimeUnit.SECONDS).resultCode);
+    instrumentation.runOnMainSync(
+        () -> {
+          assertTrue(b.finished);
+          assertEquals(0, b.index);
+          assertEquals(0, b.position);
+        });
+    instrumentation.runOnMainSync(
+        () -> {
           controller.release();
           activity.finish();
         });

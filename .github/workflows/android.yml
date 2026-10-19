@@ -21,6 +21,11 @@ jobs:
           packages: platform-tools platforms;android-35 build-tools;35.0.0
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test private AI backend without provider credentials
+        run: node --test ai-backend/test/*.test.mjs
       - name: Test, lint, and build
         run: |
           ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest
@@ -46,6 +51,7 @@ jobs:
             adb pull /sdcard/morrow-sound.png app/build/reports/device-screenshots/sound.png
             adb pull /sdcard/morrow-backup.png app/build/reports/device-screenshots/backup.png
             adb pull /sdcard/morrow-appearance.png app/build/reports/device-screenshots/appearance.png
+            adb pull /sdcard/morrow-ai-lab.png app/build/reports/device-screenshots/ai-lab.png
       - uses: actions/upload-artifact@v4
         with:
           name: Morrow-Audio-APK

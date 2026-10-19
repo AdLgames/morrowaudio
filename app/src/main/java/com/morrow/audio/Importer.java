@@ -12,7 +12,8 @@ import java.util.function.Consumer;
 public final class Importer {
   public record Result(List<Library.Book> books, int skipped, List<String> warnings) {}
 
-  private record Entry(DocumentFile file, String folder, String folderUri, String cover) {}
+  private record Entry(
+      DocumentFile file, String folder, String folderUri, String cover, String order) {}
 
   // Retain the original tree grant when importing a completed download's child folder.
   static DocumentFile folderDocument(Context ctx, Uri uri) throws IOException {
@@ -34,13 +35,17 @@ public final class Importer {
     for (Uri uri : uris) {
       DocumentFile d = tree ? folderDocument(ctx, uri) : DocumentFile.fromSingleUri(ctx, uri);
       if (d == null) continue;
-      if (tree) walk(d, entries, 0, warnings);
-      else if (audio(d.getName())) entries.add(new Entry(d, "Imported books", "files", ""));
+      if (tree) walk(d, entries, 0, warnings, "");
+      else if (audio(d.getName()))
+        entries.add(new Entry(d, "Imported books", "files", "", d.getName()));
     }
     Map<String, Library.Book> groups = new LinkedHashMap<>();
     int skipped = 0;
-    entries.sort((a, b) -> naturalCompare(a.file.getName(), b.file.getName()));
+    // Keep disc folders together before comparing filenames: CD 1/02 precedes CD 2/01.
+    entries.sort((a, b) -> naturalCompare(a.order, b.order));
+    Set<String> visited = new HashSet<>();
     for (Entry e : entries) {
+      if (!visited.add(e.file.getUri().toString())) continue;
       progress.accept("Reading " + (e.file.getName() == null ? "audio" : e.file.getName()));
       String name = e.file.getName(), base = strip(name), album = "", author = "", title = "";
       long duration = 0;
@@ -141,7 +146,8 @@ public final class Importer {
     return n == null ? "Untitled" : n.replaceFirst("\\.[^.]+$", "").replace('_', ' ').trim();
   }
 
-  private static void walk(DocumentFile folder, List<Entry> out, int depth, List<String> warnings) {
+  private static void walk(
+      DocumentFile folder, List<Entry> out, int depth, List<String> warnings, String path) {
     if (depth > 20 || out.size() > 10000) {
       warnings.add("Import limit reached; select a smaller folder.");
       return;
@@ -158,14 +164,15 @@ public final class Importer {
         && group.getName().toLowerCase(Locale.ROOT).matches("(cd|disc|disk|part)[ _-]*\\d+")
         && group.getParentFile() != null) group = group.getParentFile();
     for (DocumentFile f : children) {
-      if (f.isDirectory()) walk(f, out, depth + 1, warnings);
+      if (f.isDirectory()) walk(f, out, depth + 1, warnings, path + f.getName() + "/");
       else if (audio(f.getName()))
         out.add(
             new Entry(
                 f,
                 group.getName() == null ? "Audiobooks" : group.getName(),
                 group.getUri().toString(),
-                cover));
+                cover,
+                path + f.getName()));
     }
   }
 
