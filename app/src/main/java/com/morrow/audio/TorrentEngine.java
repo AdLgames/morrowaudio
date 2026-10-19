@@ -25,6 +25,7 @@ public final class TorrentEngine implements AutoCloseable {
     this.store = store;
     SettingsPack settings =
         new SettingsPack()
+            .downloadRateLimit(0)
             .connectionsLimit(160)
             .uploadRateLimit(256 * 1024)
             .listenInterfaces("0.0.0.0:0")

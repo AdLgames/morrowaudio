@@ -6,14 +6,20 @@ import android.net.Uri;
 import android.os.*;
 import androidx.annotation.Nullable;
 import androidx.media3.common.*;
+import androidx.media3.common.audio.AudioProcessor;
+import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.audio.*;
 import androidx.media3.session.*;
 import com.google.common.util.concurrent.*;
 import java.util.*;
 
 @androidx.annotation.OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)
 public final class PlaybackService extends MediaSessionService {
-  public static final String SLEEP = "morrow.sleep";
+  public static final String SLEEP = "morrow.sleep",
+      SNAPSHOT = "morrow.snapshot",
+      RESTORE = "morrow.restore",
+      WIDGET = "morrow.widget";
   private ExoPlayer player;
   private MediaSession session;
   private final Handler handler = new Handler(Looper.getMainLooper());
@@ -21,13 +27,42 @@ public final class PlaybackService extends MediaSessionService {
   private boolean chapterSleep;
   private int ticks;
   private Library library;
+  private SoundProcessor sound;
+  private SharedPreferences.OnSharedPreferenceChangeListener soundListener;
+  private boolean restoring;
 
   @Override
   public void onCreate() {
     super.onCreate();
     library = Library.get(this);
+    sound = new SoundProcessor(SoundSettings.read(this));
+    soundListener =
+        (preferences, key) -> {
+          if (key == null || key.startsWith("sound.")) sound.update(SoundSettings.read(this));
+          if ((key == null || key.equals("speed")) && player != null) {
+            float speed = preferences.getFloat("speed", 1f);
+            if (Float.isFinite(speed)
+                && speed >= .5f
+                && speed <= 3f
+                && Math.abs(player.getPlaybackParameters().speed - speed) > .001f)
+              player.setPlaybackSpeed(speed);
+          }
+        };
+    getSharedPreferences("settings", 0).registerOnSharedPreferenceChangeListener(soundListener);
+    DefaultRenderersFactory renderers =
+        new DefaultRenderersFactory(this) {
+          @Override
+          protected AudioSink buildAudioSink(
+              Context context, boolean floatOutput, boolean playbackParameters) {
+            return new DefaultAudioSink.Builder(context)
+                .setEnableFloatOutput(false)
+                .setEnableAudioTrackPlaybackParams(playbackParameters)
+                .setAudioProcessors(new AudioProcessor[] {sound})
+                .build();
+          }
+        };
     player =
-        new ExoPlayer.Builder(this)
+        new ExoPlayer.Builder(this, renderers)
             .setAudioAttributes(
                 new AudioAttributes.Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
@@ -99,6 +134,9 @@ public final class PlaybackService extends MediaSessionService {
                             MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
                                 .buildUpon()
                                 .add(new SessionCommand(SLEEP, Bundle.EMPTY))
+                                .add(new SessionCommand(SNAPSHOT, Bundle.EMPTY))
+                                .add(new SessionCommand(RESTORE, Bundle.EMPTY))
+                                .add(new SessionCommand(WIDGET, Bundle.EMPTY))
                                 .build())
                         .build();
                   }
@@ -109,6 +147,39 @@ public final class PlaybackService extends MediaSessionService {
                       MediaSession.ControllerInfo c,
                       SessionCommand command,
                       Bundle args) {
+                    if (command.customAction.equals(SNAPSHOT)) {
+                      persist();
+                      return Futures.immediateFuture(
+                          new SessionResult(SessionResult.RESULT_SUCCESS));
+                    }
+                    if (command.customAction.equals(RESTORE)) {
+                      player.pause();
+                      persist();
+                      restoring = true;
+                      player.clearMediaItems();
+                      getSharedPreferences("widget", 0).edit().putBoolean("playing", false).apply();
+                      MorrowWidget.updateAll(PlaybackService.this);
+                      deadline = 0;
+                      chapterSleep = false;
+                      writeSleep();
+                      return Futures.immediateFuture(
+                          new SessionResult(SessionResult.RESULT_SUCCESS));
+                    }
+                    if (command.customAction.equals(WIDGET)) {
+                      if (player.getMediaItemCount() == 0) restore();
+                      String action = args.getString("action", "toggle");
+                      if (action.equals("back")) player.seekBack();
+                      else if (action.equals("forward")) player.seekForward();
+                      else if (player.isPlaying()) player.pause();
+                      else if (player.getMediaItemCount() > 0) {
+                        if (player.getPlaybackState() == Player.STATE_ENDED) player.seekTo(0, 0);
+                        player.prepare();
+                        player.play();
+                      }
+                      persist();
+                      return Futures.immediateFuture(
+                          new SessionResult(SessionResult.RESULT_SUCCESS));
+                    }
                     if (command.customAction.equals(SLEEP)) {
                       int minutes = args.getInt("minutes");
                       chapterSleep = minutes == -1;
@@ -127,6 +198,7 @@ public final class PlaybackService extends MediaSessionService {
   }
 
   private void restore() {
+    restoring = false;
     String id = getSharedPreferences("settings", 0).getString("current", "");
     Library.Book b = library.find(id);
     if (b != null && !b.chapters.isEmpty()) {
@@ -169,6 +241,8 @@ public final class PlaybackService extends MediaSessionService {
   }
 
   private void persist() {
+    if (restoring && player.getMediaItemCount() == 0) return;
+    if (player.getMediaItemCount() > 0) restoring = false;
     Library.Book b = current();
     if (b == null) return;
     b.index = Math.max(0, player.getCurrentMediaItemIndex());
@@ -179,6 +253,12 @@ public final class PlaybackService extends MediaSessionService {
     }
     getSharedPreferences("settings", 0).edit().putString("current", b.id).apply();
     library.save();
+    getSharedPreferences("widget", 0)
+        .edit()
+        .putLong("updated", SystemClock.elapsedRealtime())
+        .putBoolean("playing", player.isPlaying())
+        .apply();
+    MorrowWidget.updateAll(this);
   }
 
   private void writeSleep() {
@@ -220,6 +300,9 @@ public final class PlaybackService extends MediaSessionService {
     deadline = 0;
     chapterSleep = false;
     writeSleep();
+    getSharedPreferences("settings", 0).unregisterOnSharedPreferenceChangeListener(soundListener);
+    getSharedPreferences("widget", 0).edit().putBoolean("playing", false).apply();
+    MorrowWidget.updateAll(this);
     session.release();
     player.release();
     super.onDestroy();

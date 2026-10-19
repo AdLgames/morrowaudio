@@ -157,6 +157,25 @@ public final class Library {
     return null;
   }
 
+  public synchronized void replaceBooks(List<Book> replacement) throws Exception {
+    JSONArray array = new JSONArray();
+    for (Book book : replacement) array.put(book.json());
+    File temp = new File(file.getPath() + ".restore");
+    try {
+      try (FileOutputStream out = new FileOutputStream(temp)) {
+        out.write(array.toString().getBytes(StandardCharsets.UTF_8));
+        out.getFD().sync();
+      }
+      java.nio.file.Files.move(
+          temp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      books.clear();
+      books.addAll(replacement);
+      loadError = "";
+    } finally {
+      temp.delete();
+    }
+  }
+
   public synchronized void save() {
     if (!loadError.isEmpty()) return;
     try {

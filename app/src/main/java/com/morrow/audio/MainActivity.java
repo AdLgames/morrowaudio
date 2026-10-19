@@ -25,10 +25,9 @@ public final class MainActivity extends Activity {
   private static final int BG = 0xfff7f5f0,
       INK = 0xff30352f,
       MUTED = 0xff818277,
-      SAGE = 0xff596b55,
-      SOFT = 0xffe5e9dd,
       LINE = 0xffe6e4dc,
       WHITE = 0xfffffefa;
+  protected int SAGE, SOFT;
   private LinearLayout root, body, collection, mini;
   private ScrollView scroll;
   private Library lib;
@@ -47,7 +46,10 @@ public final class MainActivity extends Activity {
 
   @Override
   public void onCreate(Bundle state) {
+    AccentPalette.apply(this);
     super.onCreate(state);
+    SAGE = AccentPalette.color(this);
+    SOFT = AccentPalette.soft(this);
     lib = Library.get(this);
     getWindow().setStatusBarColor(BG);
     getWindow().setNavigationBarColor(BG);
@@ -85,6 +87,7 @@ public final class MainActivity extends Activity {
     connect();
     handler.post(ticker);
     importCompletedDownload(getIntent());
+    openWidgetBook(getIntent());
     if (!lib.loadError.isEmpty())
       new AlertDialog.Builder(this)
           .setTitle("Library needs attention")
@@ -98,6 +101,32 @@ public final class MainActivity extends Activity {
     super.onNewIntent(intent);
     setIntent(intent);
     importCompletedDownload(intent);
+    openWidgetBook(intent);
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    AccentPalette.apply(this);
+    SAGE = AccentPalette.color(this);
+    SOFT = AccentPalette.soft(this);
+    if (lib != null && root != null) {
+      if (selected != null) selected = lib.find(selected.id);
+      if (selected == null && (screen.equals("detail") || screen.equals("player")))
+        screen = "library";
+      render();
+    }
+  }
+
+  private void openWidgetBook(Intent intent) {
+    if (!intent.getBooleanExtra("openCurrentBook", false)) return;
+    intent.removeExtra("openCurrentBook");
+    selected = lib.find(getSharedPreferences("settings", 0).getString("current", ""));
+    if (selected != null) go("player");
+  }
+
+  private void soundControls() {
+    startActivity(new Intent(this, SoundActivity.class));
   }
 
   private void importCompletedDownload(Intent intent) {
@@ -845,6 +874,12 @@ public final class MainActivity extends Activity {
     for (LinearLayout t : new LinearLayout[] {speed, sleep, bookmark, chapters})
       tools.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
     body.addView(tools);
+    gap(body, 12);
+    TextView soundLink = text("Equalizer & volume boost", 13, SAGE);
+    soundLink.setGravity(Gravity.CENTER);
+    pad(soundLink, 12, 12);
+    click(soundLink, this::soundControls);
+    body.addView(soundLink);
     gap(body, 22);
   }
 
@@ -900,6 +935,10 @@ public final class MainActivity extends Activity {
 
   private void toggle() {
     if (player == null) return;
+    if (player.getMediaItemCount() == 0 && selected != null) {
+      play(selected, selected.index, selected.position, true);
+      return;
+    }
     if (player.isPlaying()) player.pause();
     else {
       if (player.getPlaybackState() == Player.STATE_ENDED) player.seekTo(0, 0);
@@ -1223,9 +1262,31 @@ public final class MainActivity extends Activity {
           startImport(uris, true);
         });
     gap(body, 24);
+    body.addView(label("APPEARANCE"));
+    gap(body, 12);
+    setting(
+        "Primary colour",
+        AccentPalette.NAMES[AccentPalette.selected(this)] + " · five lofi accents",
+        () -> startActivity(new Intent(this, AppearanceActivity.class)));
+    gap(body, 24);
     body.addView(label("LISTENING"));
     gap(body, 12);
     setting("Playback speed", "Adjust your listening pace", this::speedMenu);
+    setting(
+        "Equalizer & volume boost",
+        "Five bands, voice presets & quieter recordings",
+        this::soundControls);
+    setting(
+        "Home screen widget",
+        "Play, pause, rewind & forward from your home screen",
+        () -> {
+          if (!MorrowWidget.pin(this))
+            toast("Long-press your home screen, choose Widgets, then Morrow Audio.");
+        });
+    setting(
+        "Backup & restore",
+        "Keep your library, progress, bookmarks & covers",
+        () -> startActivity(new Intent(this, BackupActivity.class)));
     gap(body, 28);
     LinearLayout card = col();
     pad(card, 20, 22);
@@ -1275,7 +1336,7 @@ public final class MainActivity extends Activity {
                     })
                 .show());
     gap(body, 22);
-    TextView footer = label("MORROW AUDIO  ·  VERSION 1.1.1");
+    TextView footer = label("MORROW AUDIO  ·  VERSION 1.2.0");
     footer.setGravity(Gravity.CENTER);
     body.addView(footer);
     gap(body, 16);
