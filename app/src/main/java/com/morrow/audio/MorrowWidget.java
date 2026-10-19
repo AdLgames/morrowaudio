@@ -81,8 +81,20 @@ public final class MorrowWidget extends AppWidgetProvider {
                 : book.chapters.get(Math.min(book.index, book.chapters.size() - 1)).title
                     + " · "
                     + Library.clock(book.position));
-    views.setProgressBar(
-        R.id.widget_progress, 1000, book == null ? 0 : (int) (book.progress() * 1000), false);
+    int accent = AccentPalette.color(context);
+    views.setTextColor(R.id.widget_brand, accent);
+    Bitmap progress = Bitmap.createBitmap(1000, 3, Bitmap.Config.ARGB_8888);
+    progress.eraseColor(AccentPalette.soft(context));
+    Paint paint = new Paint();
+    paint.setColor(accent);
+    new Canvas(progress)
+        .drawRect(0, 0, book == null ? 0 : (float) (book.progress() * 1000), 3, paint);
+    views.setImageViewBitmap(R.id.widget_progress, progress);
+    views.setContentDescription(
+        R.id.widget_progress,
+        "Listening progress " + (book == null ? 0 : (int) (book.progress() * 100)) + " percent");
+    for (int id : new int[] {R.id.widget_back, R.id.widget_play, R.id.widget_forward})
+      views.setInt(id, "setColorFilter", accent);
     views.setImageViewResource(
         R.id.widget_play, playing ? R.drawable.widget_pause : R.drawable.widget_play);
     views.setContentDescription(R.id.widget_play, playing ? "Pause audiobook" : "Play audiobook");

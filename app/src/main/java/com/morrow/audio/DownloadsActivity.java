@@ -17,11 +17,8 @@ import java.util.concurrent.*;
 import org.libtorrent4j.*;
 
 public final class DownloadsActivity extends Activity {
-  private static final int BG = 0xfff7f5f0,
-      INK = 0xff30352f,
-      MUTED = 0xff818277,
-      SAGE = 0xff596b55,
-      SOFT = 0xffe5e9dd;
+  private static final int BG = 0xfff7f5f0, INK = 0xff30352f, MUTED = 0xff818277;
+  protected int SAGE, SOFT;
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   private TorrentStore store;
@@ -44,7 +41,10 @@ public final class DownloadsActivity extends Activity {
 
   @Override
   public void onCreate(Bundle state) {
+    AccentPalette.apply(this);
     super.onCreate(state);
+    SAGE = AccentPalette.color(this);
+    SOFT = AccentPalette.soft(this);
     if (Build.VERSION.SDK_INT < 28) {
       new AlertDialog.Builder(this)
           .setTitle("Android 9 or newer needed")

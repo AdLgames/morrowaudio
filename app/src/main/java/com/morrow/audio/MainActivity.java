@@ -25,10 +25,9 @@ public final class MainActivity extends Activity {
   private static final int BG = 0xfff7f5f0,
       INK = 0xff30352f,
       MUTED = 0xff818277,
-      SAGE = 0xff596b55,
-      SOFT = 0xffe5e9dd,
       LINE = 0xffe6e4dc,
       WHITE = 0xfffffefa;
+  protected int SAGE, SOFT;
   private LinearLayout root, body, collection, mini;
   private ScrollView scroll;
   private Library lib;
@@ -47,7 +46,10 @@ public final class MainActivity extends Activity {
 
   @Override
   public void onCreate(Bundle state) {
+    AccentPalette.apply(this);
     super.onCreate(state);
+    SAGE = AccentPalette.color(this);
+    SOFT = AccentPalette.soft(this);
     lib = Library.get(this);
     getWindow().setStatusBarColor(BG);
     getWindow().setNavigationBarColor(BG);
@@ -105,6 +107,9 @@ public final class MainActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    AccentPalette.apply(this);
+    SAGE = AccentPalette.color(this);
+    SOFT = AccentPalette.soft(this);
     if (lib != null && root != null) {
       if (selected != null) selected = lib.find(selected.id);
       if (selected == null && (screen.equals("detail") || screen.equals("player")))
@@ -1256,6 +1261,13 @@ public final class MainActivity extends Activity {
           for (String s : sources) uris.add(Uri.parse(s));
           startImport(uris, true);
         });
+    gap(body, 24);
+    body.addView(label("APPEARANCE"));
+    gap(body, 12);
+    setting(
+        "Primary colour",
+        AccentPalette.NAMES[AccentPalette.selected(this)] + " · five lofi accents",
+        () -> startActivity(new Intent(this, AppearanceActivity.class)));
     gap(body, 24);
     body.addView(label("LISTENING"));
     gap(body, 12);

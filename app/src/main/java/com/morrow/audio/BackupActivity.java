@@ -37,9 +37,9 @@ public final class BackupActivity extends CalmActivity {
   private void render() {
     screen("Keep your place.", "Your stories, safely remembered.");
     note(
-        "Back up your library, listening progress, bookmarks, covers, and sound settings. Audio"
-            + " files stay in their original folders. Choose local storage, an SD card, or a"
-            + " document provider such as Drive if available on your phone.");
+        "Back up your library, listening progress, bookmarks, covers, sound settings, and accent"
+            + " colour. Audio files stay in their original folders. Choose local storage, an SD"
+            + " card, or a document provider such as Drive if available on your phone.");
     body.addView(
         button(
             "Save a backup",
@@ -166,8 +166,8 @@ public final class BackupActivity extends CalmActivity {
                             dismissBusy();
                             message(
                                 "Backup saved",
-                                "Your library, progress, bookmarks, covers, and sound settings are"
-                                    + " safely saved.");
+                                "Your library, progress, bookmarks, covers, sound settings, and"
+                                    + " accent colour are safely saved.");
                           }
                         });
                   } catch (Exception e) {

@@ -22,6 +22,7 @@ final class BackupArchive {
               "current",
               "speed",
               "folders",
+              AccentPalette.KEY,
               "sound.enabled",
               "sound.boost",
               "sound.band.0",
@@ -286,6 +287,10 @@ final class BackupArchive {
             throw new IOException("Invalid playback speed");
         } else if (key.equals("current")) {
           if (settings.getString(key).length() > 128) throw new IOException("Invalid current book");
+        } else if (key.equals(AccentPalette.KEY)) {
+          int value = settings.getInt(key);
+          if (value < 0 || value >= AccentPalette.COLORS.length)
+            throw new IOException("Invalid accent colour");
         } else if (key.equals("sound.enabled")) settings.getBoolean(key);
         else {
           int value = settings.getInt(key);

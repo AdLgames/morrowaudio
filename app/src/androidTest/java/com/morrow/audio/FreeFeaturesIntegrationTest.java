@@ -157,6 +157,7 @@ public class FreeFeaturesIntegrationTest {
             ctx.getSharedPreferences("settings", 0)
                 .edit()
                 .putString("current", book.id)
+                .putInt(AccentPalette.KEY, 2)
                 .putFloat("speed", 1.25f)
                 .putBoolean("sound.enabled", true)
                 .putInt("sound.band.2", 6)
@@ -198,7 +199,11 @@ public class FreeFeaturesIntegrationTest {
               other.title = "Keep this other book";
               other.chapters.add(book.chapters.get(0));
               Library.get(ctx).books.add(other);
-              ctx.getSharedPreferences("settings", 0).edit().putInt("sound.boost", 0).apply();
+              ctx.getSharedPreferences("settings", 0)
+                  .edit()
+                  .putInt("sound.boost", 0)
+                  .putInt(AccentPalette.KEY, 0)
+                  .apply();
               try {
                 restore.commit(ctx);
               } catch (Exception e) {
@@ -219,6 +224,7 @@ public class FreeFeaturesIntegrationTest {
           Files.readAllBytes(new File(restored.cover).toPath()));
       assertEquals(2, Library.get(ctx).books.size());
       assertEquals(3, ctx.getSharedPreferences("settings", 0).getInt("sound.boost", 0));
+      assertEquals(2, AccentPalette.selected(ctx));
       byte[] originalLibrary =
           Files.readAllBytes(new File(ctx.getFilesDir(), "library.json").toPath());
       ByteArrayOutputStream malicious = new ByteArrayOutputStream();
@@ -233,6 +239,36 @@ public class FreeFeaturesIntegrationTest {
       assertArrayEquals(
           originalLibrary,
           Files.readAllBytes(new File(ctx.getFilesDir(), "library.json").toPath()));
+      AppearanceActivity appearance =
+          (AppearanceActivity)
+              i.startActivitySync(
+                  new Intent(ctx, AppearanceActivity.class)
+                      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      i.runOnMainSync(
+          () -> {
+            View choice =
+                findDescription(appearance.getWindow().getDecorView(), "Dusty Blue accent");
+            assertNotNull(choice);
+            assertTrue(choice.performClick());
+            assertTrue(
+                findDescription(appearance.getWindow().getDecorView(), "Dusty Blue accent")
+                    .isSelected());
+          });
+      assertEquals(1, AccentPalette.selected(ctx));
+      screenshot(i, "appearance");
+      i.runOnMainSync(appearance::finish);
+      AppearanceActivity reopened =
+          (AppearanceActivity)
+              i.startActivitySync(
+                  new Intent(ctx, AppearanceActivity.class)
+                      .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+      i.runOnMainSync(
+          () -> {
+            assertTrue(
+                findDescription(reopened.getWindow().getDecorView(), "Dusty Blue accent")
+                    .isSelected());
+            reopened.finish();
+          });
       SoundActivity sound =
           (SoundActivity)
               i.startActivitySync(
@@ -241,6 +277,12 @@ public class FreeFeaturesIntegrationTest {
           () -> {
             View slider = findDescription(sound.getWindow().getDecorView(), "1 kHz · Voice");
             assertNotNull(slider);
+            assertEquals(
+                AccentPalette.COLORS[1], ((SeekBar) slider).getThumbTintList().getDefaultColor());
+            android.util.TypedValue resolved = new android.util.TypedValue();
+            assertTrue(
+                sound.getTheme().resolveAttribute(android.R.attr.colorAccent, resolved, true));
+            assertEquals(AccentPalette.COLORS[1], resolved.data);
             Bundle args = new Bundle();
             args.putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, 16);
             assertTrue(
@@ -268,6 +310,7 @@ public class FreeFeaturesIntegrationTest {
             ctx.getSharedPreferences("settings", 0)
                 .edit()
                 .remove("current")
+                .remove(AccentPalette.KEY)
                 .putBoolean("sound.enabled", false)
                 .putInt("sound.boost", 0)
                 .putFloat("speed", 1f)

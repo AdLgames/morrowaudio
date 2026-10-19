@@ -27,6 +27,7 @@ Open Morrow and select **Add an audiobook folder**. In Samsung's file picker, se
 
 All features are available without purchases or subscriptions.
 
+- **Primary colour:** Settings → Primary colour offers Sage, Dusty Blue, Rose Clay, Lavender and Cocoa. The saved accent colours highlighted text, buttons, player/download controls, system dialogs and the home screen widget against the cream background. Backups include this choice.
 - **Equalizer & volume boost:** open Settings or the player’s sound link. Five bands, speech/warmth presets and 0–12 dB boost apply in the playback pipeline, including Bluetooth. A gentle limiter controls peaks. Flat or disabled controls preserve the original PCM samples. Changes apply while listening.
 - **Home screen widget:** use Settings → Home screen widget, or long-press your Samsung home screen → Widgets → Morrow Audio. The resizable widget shows the current book and progress, with play/pause, rewind 15 seconds, and forward 30 seconds. Tap the book to open its player.
 - **Backup & restore:** Settings → Backup & restore writes a portable `.morrow.zip` to a location you select. It includes your catalog, listening progress, bookmarks, covers and sound settings. Audio files and torrent transfers are excluded. Restoring updates matching books while keeping other books, and pauses playback first. ZIP entries, sizes, references and images are validated before applying the backup; the library file is replaced atomically. The archive is not encrypted: store it somewhere you trust.

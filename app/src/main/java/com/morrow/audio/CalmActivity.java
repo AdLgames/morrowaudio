@@ -8,12 +8,15 @@ import android.view.*;
 import android.widget.*;
 
 abstract class CalmActivity extends Activity {
-  static final int BG = 0xfff7f5f0,
-      INK = 0xff30352f,
-      MUTED = 0xff818277,
-      SAGE = 0xff596b55,
-      SOFT = 0xffe5e9dd;
+  static final int BG = 0xfff7f5f0, INK = 0xff30352f, MUTED = 0xff818277;
+  protected int SAGE, SOFT;
   protected LinearLayout body;
+
+  @Override
+  public void onCreate(android.os.Bundle state) {
+    AccentPalette.apply(this);
+    super.onCreate(state);
+  }
 
   int d(int n) {
     return Math.round(n * getResources().getDisplayMetrics().density);
@@ -82,6 +85,9 @@ abstract class CalmActivity extends Activity {
   }
 
   void screen(String title, String subtitle) {
+    AccentPalette.apply(this);
+    SAGE = AccentPalette.color(this);
+    SOFT = AccentPalette.soft(this);
     LinearLayout root = col();
     root.setBackgroundColor(BG);
     root.setOnApplyWindowInsetsListener(
