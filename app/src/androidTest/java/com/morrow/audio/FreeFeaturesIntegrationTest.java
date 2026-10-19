@@ -201,6 +201,8 @@ public class FreeFeaturesIntegrationTest {
               }
             });
       }
+      i.waitForIdleSync();
+      i.runOnMainSync(() -> assertEquals(1.25f, player.getPlaybackParameters().speed, .01f));
       Library.Book restored = Library.get(ctx).find(book.id);
       assertEquals(2345, restored.position);
       assertEquals(1, restored.index);

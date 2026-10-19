@@ -39,6 +39,14 @@ public final class PlaybackService extends MediaSessionService {
     soundListener =
         (preferences, key) -> {
           if (key == null || key.startsWith("sound.")) sound.update(SoundSettings.read(this));
+          if ((key == null || key.equals("speed")) && player != null) {
+            float speed = preferences.getFloat("speed", 1f);
+            if (Float.isFinite(speed)
+                && speed >= .5f
+                && speed <= 3f
+                && Math.abs(player.getPlaybackParameters().speed - speed) > .001f)
+              player.setPlaybackSpeed(speed);
+          }
         };
     getSharedPreferences("settings", 0).registerOnSharedPreferenceChangeListener(soundListener);
     DefaultRenderersFactory renderers =
