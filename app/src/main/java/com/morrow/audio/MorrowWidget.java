@@ -24,19 +24,19 @@ public final class MorrowWidget extends AppWidgetProvider {
     super.onReceive(context, intent);
     String action = intent.getAction();
     if (action == null || !action.startsWith(PREFIX)) return;
+    Context app = context.getApplicationContext();
     PendingResult pending = goAsync();
     Handler handler = new Handler(Looper.getMainLooper());
     AtomicBoolean finished = new AtomicBoolean();
     ListenableFuture<MediaController> future =
         new MediaController.Builder(
-                context,
-                new SessionToken(context, new ComponentName(context, PlaybackService.class)))
+                app, new SessionToken(app, new ComponentName(app, PlaybackService.class)))
             .buildAsync();
     Runnable finish =
         () -> {
           if (finished.compareAndSet(false, true)) {
             MediaController.releaseFuture(future);
-            updateAll(context);
+            updateAll(app);
             pending.finish();
           }
         };
@@ -52,12 +52,12 @@ public final class MorrowWidget extends AppWidgetProvider {
                 controller.sendCustomCommand(
                     new SessionCommand(PlaybackService.WIDGET, Bundle.EMPTY), args);
             command.addListener(
-                () -> handler.postDelayed(finish, 250), ContextCompat.getMainExecutor(context));
+                () -> handler.postDelayed(finish, 250), ContextCompat.getMainExecutor(app));
           } catch (Exception e) {
             finish.run();
           }
         },
-        ContextCompat.getMainExecutor(context));
+        ContextCompat.getMainExecutor(app));
   }
 
   static RemoteViews views(Context context) {
