@@ -33,7 +33,7 @@ final class AccentPalette {
   }
 
   private static int blend(int base, int accent) {
-    return Math.round(base * .88f + accent * .12f);
+    return Math.round(base * .93f + accent * .07f);
   }
 
   static void apply(Context context) {
