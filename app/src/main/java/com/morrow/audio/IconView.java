@@ -57,6 +57,19 @@ public final class IconView extends View {
         a.lineTo(15, 19);
         c.drawPath(a, p);
         break;
+      case "download":
+        c.drawLine(12, 3, 12, 15, p);
+        a.moveTo(7, 10);
+        a.lineTo(12, 15);
+        a.lineTo(17, 10);
+        c.drawPath(a, p);
+        a.reset();
+        a.moveTo(4, 16);
+        a.lineTo(4, 21);
+        a.lineTo(20, 21);
+        a.lineTo(20, 16);
+        c.drawPath(a, p);
+        break;
       case "down":
         a.moveTo(5, 9);
         a.lineTo(12, 16);
