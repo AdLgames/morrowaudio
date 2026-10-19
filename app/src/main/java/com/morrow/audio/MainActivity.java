@@ -889,6 +889,15 @@ public final class MainActivity extends Activity {
     pad(soundLink, 12, 12);
     click(soundLink, this::soundControls);
     body.addView(soundLink);
+    gap(body, 12);
+    TextView transcriptLink = text("Read along · recap · illustrate", 15, SAGE);
+    transcriptLink.setGravity(Gravity.CENTER);
+    pad(transcriptLink, 12, 16);
+    transcriptLink.setBackground(bg(SOFT, 18));
+    click(
+        transcriptLink,
+        () -> startActivity(new Intent(this, TranscriptActivity.class).putExtra("book", b.id)));
+    body.addView(transcriptLink);
     gap(body, 22);
   }
 

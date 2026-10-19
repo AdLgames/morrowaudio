@@ -87,3 +87,7 @@ For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with
 - `ArtworkView`, `IconView`: locally drawn original artwork and interface icons.
 
 Third-party notices are included inside the app. This is a local audiobook app; network Plex servers and cross-device synchronization are outside this version's scope.
+
+
+### Read along and AI companion (1.4.0)
+Open a book's player → **Read along · recap · illustrate**. Import a chapter SRT/VTT or explicitly transcribe up to five minutes already reached in playback. Completed timed lines appear as you listen. Long-press to recap, ask about, or illustrate a passage. Catch me up uses available recent transcript, with a listening cutoff and quoted evidence. One image request creates a medium-quality, four-panel graphic-novel page; three image attempts per UTC day are shared across the private server. Saved pages reopen locally and export as JPEG. Transcripts export as SRT; these assets are not included in library backups. Live features require the updated [private backend](ai-backend/README.md); local listening/import/export remain free and offline.

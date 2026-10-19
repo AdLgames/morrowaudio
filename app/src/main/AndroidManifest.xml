@@ -11,6 +11,7 @@
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
         <activity android:name=".HelpActivity" android:exported="false" />
+        <activity android:name=".TranscriptActivity" android:exported="false" />
         <activity android:name=".AiTrialActivity" android:exported="false" />
         <activity android:name=".DownloadsActivity" android:exported="false" />
         <activity android:name=".AppearanceActivity" android:exported="false" />
