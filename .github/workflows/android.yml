@@ -35,7 +35,9 @@ jobs:
           disable-animations: true
           script: |
             ./gradlew connectedDebugAndroidTest
-            adb pull /sdcard/Android/data/com.morrow.audio/files/test-artifacts app/build/reports/device-screenshots
+            mkdir -p app/build/reports/device-screenshots
+            adb pull /sdcard/morrow-library.png app/build/reports/device-screenshots/library.png
+            adb pull /sdcard/morrow-player.png app/build/reports/device-screenshots/player.png
       - uses: actions/upload-artifact@v4
         with:
           name: Morrow-Audio-APK

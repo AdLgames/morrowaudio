@@ -4,7 +4,6 @@ import static org.junit.Assert.*;
 
 import android.app.*;
 import android.content.*;
-import android.graphics.Bitmap;
 import android.os.*;
 import android.provider.DocumentsContract;
 import android.view.*;
@@ -159,16 +158,13 @@ public class PlaybackIntegrationTest {
 
   private static void screenshot(Instrumentation i, Context ctx, String name) throws Exception {
     i.waitForIdleSync();
-    Bitmap bitmap = i.getUiAutomation().takeScreenshot();
-    if (bitmap == null) return;
-    File dir = ctx.getExternalFilesDir("test-artifacts");
-    if (dir != null) {
-      dir.mkdirs();
-      try (FileOutputStream out = new FileOutputStream(new File(dir, name + ".png"))) {
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
-      }
+    // Shell-owned files survive Gradle uninstalling the test app after execution.
+    try (ParcelFileDescriptor capture =
+            i.getUiAutomation()
+                .executeShellCommand("screencap -p /sdcard/morrow-" + name + ".png");
+        InputStream stream = new ParcelFileDescriptor.AutoCloseInputStream(capture)) {
+      while (stream.read() != -1) {}
     }
-    bitmap.recycle();
   }
 
   private interface Check {
