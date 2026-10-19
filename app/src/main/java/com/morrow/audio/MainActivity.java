@@ -180,8 +180,17 @@ public final class MainActivity extends Activity {
                             "Check that the audio file is still on your phone and the imported"
                                 + " folder is accessible. You can choose the folder again to"
                                 + " restore access.\n\n"
-                                + e.getErrorCodeName())
-                        .setPositiveButton("OK", null)
+                                + "If the file opens elsewhere but still won’t play here, its codec"
+                                + " may not be supported on this phone.")
+                        .setPositiveButton(
+                            "Reconnect folder",
+                            (dialog, which) ->
+                                startActivity(new Intent(MainActivity.this, BackupActivity.class)))
+                        .setNeutralButton(
+                            "Help",
+                            (dialog, which) ->
+                                startActivity(new Intent(MainActivity.this, HelpActivity.class)))
+                        .setNegativeButton("Close", null)
                         .show();
                     updatePlayer();
                   }
@@ -1262,6 +1271,17 @@ public final class MainActivity extends Activity {
           startImport(uris, true);
         });
     gap(body, 24);
+    body.addView(label("HELP & EARLY ACCESS"));
+    gap(body, 12);
+    setting(
+        "Getting started & updates",
+        "Samsung setup, file access, backups & the latest APK",
+        () -> startActivity(new Intent(this, HelpActivity.class)));
+    setting(
+        "AI reading lab",
+        "Test recaps and questions on a short passage",
+        () -> startActivity(new Intent(this, AiTrialActivity.class)));
+    gap(body, 24);
     body.addView(label("APPEARANCE"));
     gap(body, 12);
     setting(
@@ -1300,7 +1320,9 @@ public final class MainActivity extends Activity {
                 + "Cover search sends only your search words to Open Library. Chosen covers are"
                 + " saved for offline use. File access is limited to the files and folders you"
                 + " select. Torrent downloads connect to peers and exchange pieces while active;"
-                + " sharing stops when the download completes.",
+                + " sharing stops when the download completes. The optional AI reading lab sends"
+                + " only the passage and question you explicitly choose to send to your test"
+                + " server and OpenAI. It never uploads your audio or library automatically.",
             13,
             SAGE);
     privacy.setLineSpacing(d(4), 1);
@@ -1336,7 +1358,7 @@ public final class MainActivity extends Activity {
                     })
                 .show());
     gap(body, 22);
-    TextView footer = label("MORROW AUDIO  ·  VERSION 1.2.0");
+    TextView footer = label("MORROW AUDIO  ·  VERSION 1.3.0");
     footer.setGravity(Gravity.CENTER);
     body.addView(footer);
     gap(body, 16);

@@ -34,6 +34,14 @@ All features are available without purchases or subscriptions.
 - **Reconnect folders:** Android does not transfer file permissions in backups. After reinstalling or moving audio, use Reconnect an audio folder to select its original folder or corresponding replacement. Standard hierarchical document paths are remapped while preserving progress/bookmarks; opaque provider IDs may need the original folder layout.
 - **Uncapped downloads:** Morrow applies no download-rate limit. Peer discovery remains tuned for quick startup. Swarm and network availability still determine actual speed.
 
+## Foundation polish and AI reading lab (1.3.0)
+
+- Multi-disc imports keep natural disc/folder order before file order; repeated folder selections no longer add the same file twice within a scan.
+- Completed playback keeps its finished flag and restart position through subsequent progress snapshots and widget updates.
+- Settings → Getting started & updates explains Samsung setup, folder access, backups and manual APK updates. Playback errors link directly to folder reconnection and help.
+- Settings → AI reading lab is an explicit passage-only experiment with a real OpenAI-backed server connection. Paste a short passage or load the original sample, then request a recap or question. No audio transcription, whole-book knowledge, listening-position awareness, or automatic library upload is claimed.
+- Live AI requires deploying the private backend and setting your own provider key there. The app never contains an OpenAI key or shared public test token. Setup: [`ai-backend/README.md`](ai-backend/README.md). GitHub builds/tests the code; a Worker hosts live requests. No provider credentials are needed for CI.
+
 ## Torrent downloads
 
 Tap the download arrow or **+ → Download a torrent**. Paste a magnet link or choose a `.torrent` file, select a writable Audiobooks folder on your phone or SD card, and tap Download. Downloads show progress, speed and peers, with pause/resume, retry and folder controls. On completion, tap **Add saved books to library** to organize chapters and fetch covers as usual.

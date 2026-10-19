@@ -98,13 +98,7 @@ public final class PlaybackService extends MediaSessionService {
               deadline = 0;
               chapterSleep = false;
               writeSleep();
-              Library.Book b = current();
-              if (b != null) {
-                b.finished = true;
-                b.position = 0;
-                b.index = 0;
-                library.save();
-              }
+              persist();
             }
           }
 
@@ -245,8 +239,15 @@ public final class PlaybackService extends MediaSessionService {
     if (player.getMediaItemCount() > 0) restoring = false;
     Library.Book b = current();
     if (b == null) return;
-    b.index = Math.max(0, player.getCurrentMediaItemIndex());
-    b.position = Math.max(0, player.getCurrentPosition());
+    if (player.getPlaybackState() == Player.STATE_ENDED) {
+      // Every later callback must retain a completed book's restart position.
+      b.finished = true;
+      b.index = 0;
+      b.position = 0;
+    } else {
+      b.index = Math.max(0, player.getCurrentMediaItemIndex());
+      b.position = Math.max(0, player.getCurrentPosition());
+    }
     if (player.isPlaying()) {
       b.finished = false;
       b.lastPlayed = System.currentTimeMillis();
