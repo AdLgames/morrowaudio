@@ -144,6 +144,10 @@ public final class TorrentStore {
     save();
   }
 
+  File sessionCache() {
+    return new File(context.getFilesDir(), "torrent-discovery.state");
+  }
+
   File certificateBundle() {
     return new File(context.getFilesDir(), "torrent-trusted-roots.pem");
   }

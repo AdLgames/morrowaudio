@@ -1275,7 +1275,7 @@ public final class MainActivity extends Activity {
                     })
                 .show());
     gap(body, 22);
-    TextView footer = label("MORROW AUDIO  ·  VERSION 1.1.0");
+    TextView footer = label("MORROW AUDIO  ·  VERSION 1.1.1");
     footer.setGravity(Gravity.CENTER);
     body.addView(footer);
     gap(body, 16);
