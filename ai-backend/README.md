@@ -23,7 +23,7 @@ npx wrangler@4 deploy
 
 Enter the OpenAI API key only at the first secret prompt. For the second prompt, generate a separate random test token of at least 24 characters, for example with `openssl rand -hex 32`, and save it privately. That token grants access to this limited test server; it is **not** your provider key. Never commit either secret, paste an API key into the app, or add secrets to public issues. Wrangler sends them to Cloudflare’s secret store; this repository contains no real secret values.
 
-Review `wrangler.jsonc` before deployment. It defaults to `gpt-4.1-mini`; set `OPENAI_MODEL` to an available Responses-compatible model on your account that supports Structured Outputs. The model is selected on the server, not by app users. Review your Cloudflare plan and OpenAI billing before deploying. ChatGPT subscriptions and API billing are separate.
+Review `wrangler.jsonc` before deployment. It defaults to `gpt-6.1-sol` (the existing private trial’s configured model); set `OPENAI_MODEL` to an available Responses-compatible model on your account that supports Structured Outputs. The model is selected on the server, not by app users. Review your Cloudflare plan and OpenAI billing before deploying. ChatGPT subscriptions and API billing are separate.
 
 If this is the first Worker under your account, complete any setup prompted by Wrangler for your workers.dev subdomain. It will print a URL such as `https://morrow-ai-trial.YOUR-SUBDOMAIN.workers.dev`. In Morrow → Settings → AI reading lab:
 

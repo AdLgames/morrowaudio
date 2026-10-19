@@ -3,7 +3,7 @@
   "name": "morrow-ai-trial",
   "main": "worker.mjs",
   "compatibility_date": "2026-10-19",
-  "vars": { "OPENAI_MODEL": "gpt-4.1-mini", "AI_DAILY_LIMIT": "20" },
+  "vars": { "OPENAI_MODEL": "gpt-6.1-sol", "AI_DAILY_LIMIT": "20" },
   "durable_objects": { "bindings": [{ "name": "TRIAL_BUDGET", "class_name": "TrialBudget" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TrialBudget"] }],
   "observability": { "enabled": false }

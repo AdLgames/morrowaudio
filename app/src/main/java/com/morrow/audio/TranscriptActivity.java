@@ -65,33 +65,42 @@ public final class TranscriptActivity extends CalmActivity {
     store = new TranscriptStore(this);
     client = new CompanionClient(this);
     screen("Between the lines.", "Read along · remember · imagine");
-    note(
-        "Text appears as each timed line ends. Recaps and illustrations use only text up to your"
-            + " playback position. Long-press a passage to select it. Nothing uploads"
-            + " automatically.");
+    TextView hint =
+        text(
+            "Completed lines appear as you listen. Long-press a passage to recap or illustrate it.",
+            13,
+            MUTED);
+    hint.setLineSpacing(d(3), 1);
+    body.addView(hint);
+    gap(body, 16);
     chapterButton = button("", false, this::chooseChapter);
     body.addView(chapterButton);
     gap(body, 12);
-    body.addView(
+    LinearLayout controls = row();
+    controls.addView(
         button(
-            "Follow the playing chapter",
+            "Follow audio",
             false,
             () -> {
               follow = true;
               chapter = Math.min(cutoff().chapter, book.chapters.size() - 1);
               loadChapter();
-            }));
-    gap(body, 12);
-    body.addView(
+            }),
+        new LinearLayout.LayoutParams(0, -2, 1));
+    View space = new View(this);
+    controls.addView(space, new LinearLayout.LayoutParams(d(12), 1));
+    controls.addView(
         button(
-            "Play / pause audiobook",
+            "Play / pause",
             false,
             () -> {
               if (player != null && playingThisBook()) {
                 if (player.isPlaying()) player.pause();
                 else player.play();
               } else tell("Start this book in the player, then return here to read along.");
-            }));
+            }),
+        new LinearLayout.LayoutParams(0, -2, 1));
+    body.addView(controls);
     gap(body, 16);
     status = text("Connecting to playback…", 13, MUTED);
     status.setLineSpacing(d(4), 1);
