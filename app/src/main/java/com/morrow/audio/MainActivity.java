@@ -381,7 +381,11 @@ public final class MainActivity extends Activity {
               11,
               SAGE));
       card.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
-      card.addView(icon("play", SAGE, () -> play(b, b.index, b.position, true)));
+      card.addView(
+          icon(
+              "play",
+              SAGE,
+              () -> play(b, b.finished ? 0 : b.index, b.finished ? 0 : b.position, true)));
       click(
           card,
           () -> {

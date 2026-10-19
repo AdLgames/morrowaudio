@@ -4,13 +4,16 @@ import static org.junit.Assert.*;
 
 import android.app.*;
 import android.content.*;
+import android.graphics.Bitmap;
 import android.os.*;
 import android.provider.DocumentsContract;
 import android.view.*;
+import android.widget.TextView;
 import androidx.media3.common.*;
 import androidx.media3.session.*;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -59,13 +62,20 @@ public class PlaybackIntegrationTest {
                         ctx, new SessionToken(ctx, new ComponentName(ctx, PlaybackService.class)))
                     .buildAsync()));
     MediaController controller = pending.get().get(90, TimeUnit.SECONDS);
+    if (Build.VERSION.SDK_INT >= 33) {
+      try (ParcelFileDescriptor ignored =
+          instrumentation
+              .getUiAutomation()
+              .executeShellCommand(
+                  "pm grant com.morrow.audio android.permission.POST_NOTIFICATIONS")) {}
+    }
+    screenshot(instrumentation, ctx, "library");
     instrumentation.runOnMainSync(
-        () -> {
-          controller.setMediaItems(PlaybackService.items(b), 0, 0);
-          controller.prepare();
-          controller.play();
-        });
+        () -> assertTrue(tap(activity.getWindow().getDecorView(), "Test Book")));
+    instrumentation.runOnMainSync(
+        () -> assertTrue(tap(activity.getWindow().getDecorView(), "Start listening")));
     await(instrumentation, () -> controller.isPlaying(), 90000);
+    screenshot(instrumentation, ctx, "player");
     instrumentation.runOnMainSync(
         () -> {
           controller.seekTo(0, 3000);
@@ -111,6 +121,35 @@ public class PlaybackIntegrationTest {
           controller.release();
           activity.finish();
         });
+  }
+
+  private static boolean tap(View view, String title) {
+    if (view instanceof TextView && ((TextView) view).getText().toString().equals(title)) {
+      View target = view;
+      while (!target.isClickable() && target.getParent() instanceof View)
+        target = (View) target.getParent();
+      assertTrue("Clickable control for " + title, target.isClickable());
+      target.performClick();
+      return true;
+    }
+    if (view instanceof ViewGroup)
+      for (int n = 0; n < ((ViewGroup) view).getChildCount(); n++)
+        if (tap(((ViewGroup) view).getChildAt(n), title)) return true;
+    return false;
+  }
+
+  private static void screenshot(Instrumentation i, Context ctx, String name) throws Exception {
+    i.waitForIdleSync();
+    Bitmap bitmap = i.getUiAutomation().takeScreenshot();
+    if (bitmap == null) return;
+    File dir = ctx.getExternalFilesDir("test-artifacts");
+    if (dir != null) {
+      dir.mkdirs();
+      try (FileOutputStream out = new FileOutputStream(new File(dir, name + ".png"))) {
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+      }
+    }
+    bitmap.recycle();
   }
 
   private interface Check {

@@ -33,7 +33,9 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest
+          script: |
+            ./gradlew connectedDebugAndroidTest
+            adb pull /sdcard/Android/data/com.morrow.audio/files/test-artifacts app/build/reports/device-screenshots
       - uses: actions/upload-artifact@v4
         with:
           name: Morrow-Audio-APK
@@ -43,5 +45,6 @@ jobs:
         with:
           name: Android-test-reports
           path: |
+            app/build/reports/device-screenshots/
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/

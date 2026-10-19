@@ -9,7 +9,14 @@ import java.io.File;
 public final class ArtworkView extends View {
   private final Paint p = new Paint(3);
   private final Library.Book book;
-  private Bitmap bitmap;
+  // Views hold no decoded image references, so scrolling a large collection stays bounded.
+  private static final android.util.LruCache<String, Bitmap> CACHE =
+      new android.util.LruCache<String, Bitmap>(16 * 1024 * 1024) {
+        @Override
+        protected int sizeOf(String key, Bitmap value) {
+          return value.getByteCount();
+        }
+      };
   private final boolean large;
   private static final int[][] PALETTES = {
     {0xffdbb9a5, 0xff765945},
@@ -24,15 +31,26 @@ public final class ArtworkView extends View {
     this.book = b;
     this.large = large;
     setContentDescription("Cover of " + b.title);
-    if (!b.cover.isEmpty() && new File(b.cover).exists()) {
-      BitmapFactory.Options bounds = new BitmapFactory.Options();
-      bounds.inJustDecodeBounds = true;
-      BitmapFactory.decodeFile(b.cover, bounds);
-      bounds.inSampleSize =
-          Math.max(1, Math.max(bounds.outWidth, bounds.outHeight) / (large ? 1000 : 400));
-      bounds.inJustDecodeBounds = false;
-      bitmap = BitmapFactory.decodeFile(b.cover, bounds);
-    }
+  }
+
+  private Bitmap artwork() {
+    if (book.cover.isEmpty()) return null;
+    String key = book.cover + (large ? ":large" : ":small");
+    Bitmap cached = CACHE.get(key);
+    if (cached != null) return cached;
+    if (!new File(book.cover).exists()) return null;
+    BitmapFactory.Options bounds = new BitmapFactory.Options();
+    bounds.inJustDecodeBounds = true;
+    BitmapFactory.decodeFile(book.cover, bounds);
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+    int sample = 1, target = large ? 1000 : 400;
+    while (Math.max(bounds.outWidth, bounds.outHeight) / sample > target && sample < 16384)
+      sample *= 2;
+    bounds.inSampleSize = sample;
+    bounds.inJustDecodeBounds = false;
+    Bitmap decoded = BitmapFactory.decodeFile(book.cover, bounds);
+    if (decoded != null) CACHE.put(key, decoded);
+    return decoded;
   }
 
   @Override
@@ -43,6 +61,7 @@ public final class ArtworkView extends View {
     clip.addRoundRect(new RectF(0, 0, w, h), w * .065f, w * .065f, Path.Direction.CW);
     canvas.save();
     canvas.clipPath(clip);
+    Bitmap bitmap = artwork();
     if (bitmap != null) {
       float s = Math.max(w / bitmap.getWidth(), h / bitmap.getHeight());
       float bw = bitmap.getWidth() * s, bh = bitmap.getHeight() * s;

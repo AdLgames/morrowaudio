@@ -100,6 +100,12 @@ public class FixtureProvider extends DocumentsProvider {
   }
 
   @Override
+  public boolean isChildDocument(String parent, String child) {
+    return (parent.equals("root") && (child.equals("book") || child.matches("1|2|10")))
+        || (parent.equals("book") && child.matches("1|2|10"));
+  }
+
+  @Override
   public ParcelFileDescriptor openDocument(String id, String mode, CancellationSignal signal)
       throws FileNotFoundException {
     return ParcelFileDescriptor.open(

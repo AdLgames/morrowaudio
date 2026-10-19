@@ -39,7 +39,7 @@ Install JDK 17 and Android SDK 35, then run:
 
 Set `ANDROID_HOME` or an untracked `local.properties` with `sdk.dir=/path/to/android-sdk`. Output: `app/build/outputs/apk/debug/app-debug.apk`. CI runs the same checks and provides a debug APK artifact for each build. Debug APKs use a different signing key from the downloadable release APK. To reproduce a signed release, set `MORROW_KEYSTORE`, `MORROW_PASSWORD_FILE` and `ANDROID_HOME`, then run `scripts/sign-release.sh`. Do not commit personal signing keys or local SDK paths.
 
-For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with an Android emulator or test device attached. The test installs a test-only document provider, imports three real WAV chapters, and checks natural ordering, playback, seeking, speed, chapter-end sleep, and persisted progress/bookmarks. It clears the test app’s library, so use a test installation.
+For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with an Android emulator or test device attached. The debug build includes a test-only document provider (excluded from the release APK); the test imports three real WAV chapters, and checks natural ordering, playback, seeking, speed, chapter-end sleep, and persisted progress/bookmarks. It clears the test app’s library, so use a test installation.
 
 ## Source layout
 
