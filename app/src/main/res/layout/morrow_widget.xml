@@ -1,0 +1,16 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="12dp" android:background="@drawable/widget_background">
+    <LinearLayout android:id="@+id/widget_open" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:contentDescription="Open Morrow Audio">
+        <ImageView android:id="@+id/widget_cover" android:layout_width="48dp" android:layout_height="52dp" android:scaleType="centerCrop" android:src="@drawable/ic_launcher" android:contentDescription="Book cover" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+            <TextView android:includeFontPadding="false" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="M O R R O W" android:textColor="#596B55" android:textSize="9sp" android:maxLines="1" />
+            <TextView android:includeFontPadding="false" android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:fontFamily="serif" android:text="Pick a story" android:textColor="#30352F" android:textSize="19sp" android:maxLines="1" android:ellipsize="end" />
+            <TextView android:includeFontPadding="false" android:id="@+id/widget_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="#818277" android:textSize="11sp" android:maxLines="1" android:ellipsize="end" />
+        </LinearLayout>
+    </LinearLayout>
+    <ProgressBar android:id="@+id/widget_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:layout_marginTop="6dp" android:max="1000" android:progressTint="#596B55" android:progressBackgroundTint="#E5E9DD" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="horizontal">
+        <ImageButton android:id="@+id/widget_back" android:layout_width="56dp" android:layout_height="48dp" android:background="@android:color/transparent" android:src="@drawable/widget_back" android:contentDescription="Rewind 15 seconds" />
+        <ImageButton android:id="@+id/widget_play" android:layout_width="56dp" android:layout_height="48dp" android:background="@android:color/transparent" android:src="@drawable/widget_play" android:contentDescription="Play audiobook" />
+        <ImageButton android:id="@+id/widget_forward" android:layout_width="56dp" android:layout_height="48dp" android:background="@android:color/transparent" android:src="@drawable/widget_forward" android:contentDescription="Forward 30 seconds" />
+    </LinearLayout>
+</LinearLayout>

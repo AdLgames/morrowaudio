@@ -23,6 +23,16 @@ Open Morrow and select **Add an audiobook folder**. In Samsung's file picker, se
 - Optional Open Library search with edition selection and cover preview; use cover only or title and author too. Downloaded covers work offline. Custom covers can be selected from your phone.
 - Rescan saved folders to add new books and chapters without resetting listening progress. Scans do not remove missing files or overwrite your edits. To replace moved files, remove the old library entry and import their new folder.
 
+## Free listening tools
+
+All features are available without purchases or subscriptions.
+
+- **Equalizer & volume boost:** open Settings or the player’s sound link. Five bands, speech/warmth presets and 0–12 dB boost apply in the playback pipeline, including Bluetooth. A gentle limiter controls peaks. Flat or disabled controls preserve the original PCM samples. Changes apply while listening.
+- **Home screen widget:** use Settings → Home screen widget, or long-press your Samsung home screen → Widgets → Morrow Audio. The resizable widget shows the current book and progress, with play/pause, rewind 15 seconds, and forward 30 seconds. Tap the book to open its player.
+- **Backup & restore:** Settings → Backup & restore writes a portable `.morrow.zip` to a location you select. It includes your catalog, listening progress, bookmarks, covers and sound settings. Audio files and torrent transfers are excluded. Restoring updates matching books while keeping other books, and pauses playback first. ZIP entries, sizes, references and images are validated before applying the backup; the library file is replaced atomically. The archive is not encrypted: store it somewhere you trust.
+- **Reconnect folders:** Android does not transfer file permissions in backups. After reinstalling or moving audio, use Reconnect an audio folder to select its original folder or corresponding replacement. Standard hierarchical document paths are remapped while preserving progress/bookmarks; opaque provider IDs may need the original folder layout.
+- **Uncapped downloads:** Morrow applies no download-rate limit. Peer discovery remains tuned for quick startup. Swarm and network availability still determine actual speed.
+
 ## Torrent downloads
 
 Tap the download arrow or **+ → Download a torrent**. Paste a magnet link or choose a `.torrent` file, select a writable Audiobooks folder on your phone or SD card, and tap Download. Downloads show progress, speed and peers, with pause/resume, retry and folder controls. On completion, tap **Add saved books to library** to organize chapters and fetch covers as usual.

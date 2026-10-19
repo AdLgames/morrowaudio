@@ -42,6 +42,9 @@ jobs:
             adb pull /sdcard/morrow-library.png app/build/reports/device-screenshots/library.png
             adb pull /sdcard/morrow-player.png app/build/reports/device-screenshots/player.png
             adb pull /sdcard/morrow-downloads.png app/build/reports/device-screenshots/downloads.png
+            adb pull /sdcard/morrow-widget.png app/build/reports/device-screenshots/widget.png
+            adb pull /sdcard/morrow-sound.png app/build/reports/device-screenshots/sound.png
+            adb pull /sdcard/morrow-backup.png app/build/reports/device-screenshots/backup.png
       - uses: actions/upload-artifact@v4
         with:
           name: Morrow-Audio-APK
