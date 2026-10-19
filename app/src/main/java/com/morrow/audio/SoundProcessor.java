@@ -31,6 +31,7 @@ final class SoundProcessor extends BaseAudioProcessor {
 
   @Override
   public void queueInput(ByteBuffer input) {
+    if (!input.hasRemaining()) return;
     VoiceDsp.Config config = requested;
     if (applied != config) {
       dsp.configure(inputAudioFormat.sampleRate, inputAudioFormat.channelCount, config);

@@ -36,6 +36,8 @@ public class FreeFeaturesIntegrationTest {
     SoundProcessor processor = new SoundProcessor(new VoiceDsp.Config(false, new int[5], 0));
     processor.configure(new AudioProcessor.AudioFormat(44100, 1, C.ENCODING_PCM_16BIT));
     processor.flush();
+    processor.queueInput(AudioProcessor.EMPTY_BUFFER);
+    assertEquals(0, processor.getOutput().remaining());
     ByteBuffer input =
         ByteBuffer.allocateDirect(4)
             .order(ByteOrder.LITTLE_ENDIAN)
@@ -53,6 +55,9 @@ public class FreeFeaturesIntegrationTest {
     ByteBuffer boosted = processor.getOutput().order(ByteOrder.LITTLE_ENDIAN);
     assertEquals(3991, boosted.getShort(), 2);
     assertEquals(-3991, boosted.getShort(), 2);
+    processor.queueInput(AudioProcessor.EMPTY_BUFFER);
+    processor.queueEndOfStream();
+    assertTrue(processor.isEnded());
     processor.reset();
   }
 
