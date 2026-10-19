@@ -76,6 +76,11 @@ public final class MainActivity extends Activity {
       if (selected == null && (screen.equals("player") || screen.equals("detail")))
         screen = "library";
     }
+    if (Build.VERSION.SDK_INT >= 33) {
+      getOnBackInvokedDispatcher()
+          .registerOnBackInvokedCallback(
+              android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
+    }
     render();
     connect();
     handler.post(ticker);

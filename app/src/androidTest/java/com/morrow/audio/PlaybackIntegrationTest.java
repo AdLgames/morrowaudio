@@ -63,11 +63,17 @@ public class PlaybackIntegrationTest {
                     .buildAsync()));
     MediaController controller = pending.get().get(90, TimeUnit.SECONDS);
     if (Build.VERSION.SDK_INT >= 33) {
-      try (ParcelFileDescriptor ignored =
-          instrumentation
-              .getUiAutomation()
-              .executeShellCommand(
-                  "pm grant com.morrow.audio android.permission.POST_NOTIFICATIONS")) {}
+      try (ParcelFileDescriptor grant =
+              instrumentation
+                  .getUiAutomation()
+                  .executeShellCommand(
+                      "pm grant com.morrow.audio android.permission.POST_NOTIFICATIONS");
+          InputStream resultStream = new ParcelFileDescriptor.AutoCloseInputStream(grant)) {
+        while (resultStream.read() != -1) {}
+      }
+      assertEquals(
+          android.content.pm.PackageManager.PERMISSION_GRANTED,
+          ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS));
     }
     screenshot(instrumentation, ctx, "library");
     instrumentation.runOnMainSync(
@@ -76,6 +82,10 @@ public class PlaybackIntegrationTest {
         () -> assertTrue(tap(activity.getWindow().getDecorView(), "Start listening")));
     await(instrumentation, () -> controller.isPlaying(), 90000);
     screenshot(instrumentation, ctx, "player");
+    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+    instrumentation.waitForIdleSync();
+    instrumentation.runOnMainSync(
+        () -> assertTrue(containsText(activity.getWindow().getDecorView(), "A little escape.")));
     instrumentation.runOnMainSync(
         () -> {
           controller.seekTo(0, 3000);
@@ -121,6 +131,15 @@ public class PlaybackIntegrationTest {
           controller.release();
           activity.finish();
         });
+  }
+
+  private static boolean containsText(View view, String text) {
+    if (view instanceof TextView && ((TextView) view).getText().toString().equals(text))
+      return true;
+    if (view instanceof ViewGroup)
+      for (int n = 0; n < ((ViewGroup) view).getChildCount(); n++)
+        if (containsText(((ViewGroup) view).getChildAt(n), text)) return true;
+    return false;
   }
 
   private static boolean tap(View view, String title) {
