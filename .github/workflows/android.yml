@@ -25,7 +25,7 @@ jobs:
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug
       - name: Enable Android emulator acceleration
         run: sudo chmod a+rw /dev/kvm
-      - name: Test import and playback on Android 15
+      - name: Test playback, torrent transfers and storage on Android 15
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -38,6 +38,7 @@ jobs:
             mkdir -p app/build/reports/device-screenshots
             adb pull /sdcard/morrow-library.png app/build/reports/device-screenshots/library.png
             adb pull /sdcard/morrow-player.png app/build/reports/device-screenshots/player.png
+            adb pull /sdcard/morrow-downloads.png app/build/reports/device-screenshots/downloads.png
       - uses: actions/upload-artifact@v4
         with:
           name: Morrow-Audio-APK

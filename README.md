@@ -23,9 +23,21 @@ Open Morrow and select **Add an audiobook folder**. In Samsung's file picker, se
 - Optional Open Library search with edition selection and cover preview; use cover only or title and author too. Downloaded covers work offline. Custom covers can be selected from your phone.
 - Rescan saved folders to add new books and chapters without resetting listening progress. Scans do not remove missing files or overwrite your edits. To replace moved files, remove the old library entry and import their new folder.
 
+## Torrent downloads
+
+Tap the download arrow or **+ → Download a torrent**. Paste a magnet link or choose a `.torrent` file, select a writable Audiobooks folder on your phone or SD card, and tap Download. Downloads show progress, speed and peers, with pause/resume, retry and folder controls. On completion, tap **Add saved books to library** to organize chapters and fetch covers as usual.
+
+HTTPS trackers use Android’s system certificate authorities with certificate validation enabled.
+
+BitTorrent requires available peers and exchanges pieces while active; sharing stops when each torrent completes. Transfers can use mobile data. Files download into temporary app-private phone storage, then verified payloads are copied into a new subfolder in your selected destination. Keep enough free space in both locations. Partial copies use `.morrow-part` names and are excluded from library scans. Completed copies stay in the destination if you remove download history or uninstall the app. Restart paused transfers from Downloads after reopening; they do not start on boot. Android 15 may pause a foreground data transfer after its six-hour background allowance; tap Resume to continue when Android permits it. Destination access or storage failures can be retried without downloading verified data again.
+
+Torrent downloads require Android 9 or newer; local playback supports Android 8.
+
+The main APK is for ARM64 Samsung phones. For a phone running 32-bit Android, use `dist/MorrowAudio-arm32.apk`. Both use the same signing certificate and version. Build the 32-bit release with `./gradlew -PmorrowArm32 assembleRelease`. Debug builds include ARM64, ARMv7 and x86_64 for emulator checks.
+
 ## Privacy and storage
 
-Only file/folder URIs you choose are granted to Morrow through Android's Storage Access Framework. There is no broad storage permission, audio upload, analytics, login, or cloud sync. Searching sends your typed title and author to `https://openlibrary.org`; choosing an edition downloads its cover from `https://covers.openlibrary.org`. Cover rights belong to their respective owners. Library state and cached covers live in app-private storage; Android backup is disabled. Uninstalling clears progress and bookmarks, but leaves original audio alone. Playback position is saved on state changes and every five seconds during the service lifetime.
+Only file/folder URIs you choose are granted to Morrow through Android's Storage Access Framework. There is no broad storage permission, analytics, login, or cloud sync. Playback is offline. Torrent transfers connect to trackers/peers and exchange pieces while downloading. Searching sends your typed title and author to `https://openlibrary.org`; choosing an edition downloads its cover from `https://covers.openlibrary.org`. Cover rights belong to their respective owners. Library state and cached covers live in app-private storage; Android backup is disabled. Uninstalling clears progress and bookmarks, but leaves original audio alone. Playback position is saved on state changes and every five seconds during the service lifetime.
 
 Use **Unrestricted** battery access in Samsung's App info → Battery settings if your phone stops background playback. Original files must remain available; moving them or removing an SD card breaks playback until they are reimported.
 
@@ -39,7 +51,7 @@ Install JDK 17 and Android SDK 35, then run:
 
 Set `ANDROID_HOME` or an untracked `local.properties` with `sdk.dir=/path/to/android-sdk`. Output: `app/build/outputs/apk/debug/app-debug.apk`. CI runs the same checks and provides a debug APK artifact for each build. Debug APKs use a different signing key from the downloadable release APK. To reproduce a signed release, set `MORROW_KEYSTORE`, `MORROW_PASSWORD_FILE` and `ANDROID_HOME`, then run `scripts/sign-release.sh`. Do not commit personal signing keys or local SDK paths.
 
-For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with an Android emulator or test device attached. The debug build includes a test-only document provider (excluded from the release APK); the test imports three real WAV chapters, and checks natural ordering, playback, seeking, speed, chapter-end sleep, and persisted progress/bookmarks. It clears the test app’s library, so use a test installation.
+For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with an Android emulator or test device attached. The debug build includes a test-only document provider (excluded from the release APK); the test imports three real WAV chapters, and checks natural ordering, playback, seeking, speed, chapter-end sleep, and persisted progress/bookmarks. Torrent tests seed synthetic WAV audio over loopback, transfer both a torrent file and magnet link, pause/resume the native engine, and verify byte-exact SAF exports and library import. It clears the test app’s library, so use a test installation.
 
 ## Source layout
 
@@ -48,6 +60,8 @@ For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with
 - `Library`: atomic local JSON persistence and audiobook model.
 - `Importer`: SAF folder scans, tag/art extraction and duplicate handling.
 - `ChapterParser`: bounded MP4 and ID3 chapter readers.
+- `TorrentEngine`, `TorrentService`: native libtorrent4j transfers, foreground notification, pause and resume checkpoints.
+- `DownloadsActivity`, `TorrentStore`, `TorrentExporter`: download queue, persisted progress and verified SAF folder exports.
 - `CoverSearch`: HTTPS Open Library metadata requests.
 - `ArtworkView`, `IconView`: locally drawn original artwork and interface icons.
 

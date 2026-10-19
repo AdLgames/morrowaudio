@@ -84,12 +84,36 @@ public final class MainActivity extends Activity {
     render();
     connect();
     handler.post(ticker);
+    importCompletedDownload(getIntent());
     if (!lib.loadError.isEmpty())
       new AlertDialog.Builder(this)
           .setTitle("Library needs attention")
           .setMessage(lib.loadError)
           .setPositiveButton("OK", null)
           .show();
+  }
+
+  @Override
+  protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+    importCompletedDownload(intent);
+  }
+
+  private void importCompletedDownload(Intent intent) {
+    String id = intent.getStringExtra("importDownload");
+    if (id == null) return;
+    intent.removeExtra("importDownload");
+    TorrentStore.Download download = TorrentStore.get(this).find(id);
+    if (download != null && download.finished() && !download.savedUri.isEmpty())
+      handler.post(
+          () -> {
+            if (alive) startImport(Collections.singletonList(Uri.parse(download.savedUri)), true);
+          });
+  }
+
+  private void downloads() {
+    startActivity(new Intent(this, DownloadsActivity.class));
   }
 
   private void connect() {
@@ -317,6 +341,9 @@ public final class MainActivity extends Activity {
               if (!searchVisible) query = "";
               render();
             }));
+    IconView downloads = icon("download", SAGE, this::downloads);
+    downloads.setContentDescription("Downloads");
+    top.addView(downloads);
     IconView add = icon("plus", SAGE, this::importMenu);
     add.setBackground(bg(SOFT, 24));
     add.setContentDescription("Import audiobooks");
@@ -1177,6 +1204,7 @@ public final class MainActivity extends Activity {
     gap(body, 12);
     setting("Add audiobook folder", "Group chapter files into books", () -> pick(true));
     setting("Import audio files", "MP3, M4B, M4A, FLAC, Ogg, Opus & WAV", () -> pick(false));
+    setting("Downloads", "Magnet links, torrent files & save folders", this::downloads);
     Set<String> sources =
         getSharedPreferences("settings", 0).getStringSet("folders", Collections.emptySet());
     setting(
@@ -1206,11 +1234,12 @@ public final class MainActivity extends Activity {
     gap(card, 12);
     TextView privacy =
         text(
-            "Your audio stays on your phone. No account, server, subscription, or uploads. Morrow"
+            "Your library plays from your phone. No account, server, or subscription. Morrow"
                 + " remembers progress and bookmarks on this device.\n\n"
                 + "Cover search sends only your search words to Open Library. Chosen covers are"
                 + " saved for offline use. File access is limited to the files and folders you"
-                + " select.",
+                + " select. Torrent downloads connect to peers and exchange pieces while active;"
+                + " sharing stops when the download completes.",
             13,
             SAGE);
     privacy.setLineSpacing(d(4), 1);
@@ -1223,7 +1252,7 @@ public final class MainActivity extends Activity {
         () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://openlibrary.org"))));
     setting(
         "Open-source licenses",
-        "AndroidX Media3 · Apache License 2.0",
+        "AndroidX Media3 · libtorrent4j & dependencies",
         () ->
             new AlertDialog.Builder(this)
                 .setTitle("Open-source software")
@@ -1234,6 +1263,8 @@ public final class MainActivity extends Activity {
                         + "https://www.apache.org/licenses/LICENSE-2.0\n\n"
                         + "Open Library provides book metadata. Cover images remain the property of"
                         + " their respective rights holders.\n\n"
+                        + "Torrent downloads use libtorrent4j (MIT) and libtorrent (BSD), with"
+                        + " their native dependencies. Full notices are included below.\n\n"
                         + "Original placeholder artwork is drawn locally by Morrow.")
                 .setPositiveButton("Close", null)
                 .setNeutralButton(
@@ -1244,7 +1275,7 @@ public final class MainActivity extends Activity {
                     })
                 .show());
     gap(body, 22);
-    TextView footer = label("MORROW AUDIO  ·  VERSION 1.0.0");
+    TextView footer = label("MORROW AUDIO  ·  VERSION 1.1.0");
     footer.setGravity(Gravity.CENTER);
     body.addView(footer);
     gap(body, 16);
@@ -1464,8 +1495,11 @@ public final class MainActivity extends Activity {
     new AlertDialog.Builder(this)
         .setTitle("Bring your stories along")
         .setItems(
-            new String[] {"Add an audiobook folder", "Choose audio files"},
-            (dialog, i) -> pick(i == 0))
+            new String[] {"Add an audiobook folder", "Choose audio files", "Download a torrent"},
+            (dialog, i) -> {
+              if (i == 2) downloads();
+              else pick(i == 0);
+            })
         .show();
   }
 
