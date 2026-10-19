@@ -144,6 +144,10 @@ public final class TorrentStore {
     save();
   }
 
+  File certificateBundle() {
+    return new File(context.getFilesDir(), "torrent-trusted-roots.pem");
+  }
+
   public File root(Download d) {
     return new File(context.getFilesDir(), "torrent-data/" + d.id);
   }

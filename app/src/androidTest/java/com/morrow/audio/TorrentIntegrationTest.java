@@ -40,6 +40,14 @@ public class TorrentIntegrationTest {
     TorrentInfo info = new TorrentInfo(metadata);
     TorrentStore store = TorrentStore.get(ctx);
     try (TorrentEngine seeder = new TorrentEngine(store, true)) {
+      assertEquals(store.certificateBundle().getPath(), android.system.Os.getenv("SSL_CERT_FILE"));
+      try (InputStream certificates = new FileInputStream(store.certificateBundle())) {
+        assertTrue(
+            java.security.cert.CertificateFactory.getInstance("X.509")
+                    .generateCertificates(certificates)
+                    .size()
+                > 20);
+      }
       AddTorrentParams p = new AddTorrentParams();
       p.setTorrentInfo(info);
       p.setSavePath(seed.getPath());

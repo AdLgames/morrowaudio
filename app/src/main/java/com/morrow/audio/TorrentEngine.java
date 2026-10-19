@@ -14,7 +14,8 @@ public final class TorrentEngine implements AutoCloseable {
   private final TorrentStore store;
   private final Map<String, File> resumeFiles = new ConcurrentHashMap<>();
 
-  public TorrentEngine(TorrentStore store, boolean localOnly) {
+  public TorrentEngine(TorrentStore store, boolean localOnly) throws Exception {
+    TorrentTrust.configure(store.certificateBundle());
     this.store = store;
     SettingsPack settings =
         new SettingsPack()
