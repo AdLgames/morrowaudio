@@ -12,17 +12,29 @@ import org.libtorrent4j.swig.*;
 public final class TorrentEngine implements AutoCloseable {
   public final SessionManager session = new SessionManager();
   private final TorrentStore store;
+  private final boolean localOnly;
   private final Map<String, File> resumeFiles = new ConcurrentHashMap<>();
 
   public TorrentEngine(TorrentStore store, boolean localOnly) throws Exception {
+    this(store, localOnly, () -> {});
+  }
+
+  public TorrentEngine(TorrentStore store, boolean localOnly, Runnable changed) throws Exception {
     TorrentTrust.configure(store.certificateBundle());
+    this.localOnly = localOnly;
     this.store = store;
     SettingsPack settings =
         new SettingsPack()
-            .connectionsLimit(80)
-            .uploadRateLimit(64 * 1024)
+            .connectionsLimit(160)
+            .uploadRateLimit(256 * 1024)
             .listenInterfaces("0.0.0.0:0")
             .stopTrackerTimeout(1);
+    settings.setInteger(settings_pack.int_types.connection_speed.swigValue(), 40);
+    settings.setInteger(settings_pack.int_types.torrent_connect_boost.swigValue(), 30);
+    settings.setInteger(settings_pack.int_types.dht_search_branching.swigValue(), 8);
+    settings.setBoolean(settings_pack.bool_types.announce_to_all_tiers.swigValue(), true);
+    settings.setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true);
+    settings.setBoolean(settings_pack.bool_types.use_dht_as_fallback.swigValue(), false);
     settings.setMaxMetadataSize(5 * 1024 * 1024);
     if (localOnly) {
       settings.setEnableDht(false);
@@ -33,10 +45,21 @@ public final class TorrentEngine implements AutoCloseable {
     session.addListener(
         new AlertListener() {
           public int[] types() {
-            return new int[] {AlertType.SAVE_RESUME_DATA.swig()};
+            return new int[] {
+              AlertType.SAVE_RESUME_DATA.swig(),
+              AlertType.METADATA_RECEIVED.swig(),
+              AlertType.ADD_TORRENT.swig(),
+              AlertType.TORRENT_FINISHED.swig(),
+              AlertType.TORRENT_ERROR.swig(),
+              AlertType.FILE_ERROR.swig()
+            };
           }
 
           public void alert(Alert<?> alert) {
+            if (!(alert instanceof SaveResumeDataAlert)) {
+              changed.run();
+              return;
+            }
             try {
               SaveResumeDataAlert saved = (SaveResumeDataAlert) alert;
               File target = resumeFiles.get(saved.handle().infoHash().toHex());
@@ -51,7 +74,10 @@ public final class TorrentEngine implements AutoCloseable {
             }
           }
         });
-    session.start(new SessionParams(settings));
+    session.start(
+        localOnly
+            ? new SessionParams(settings)
+            : TorrentSessionCache.load(store.sessionCache(), settings));
   }
 
   private File resume(TorrentStore.Download d) {
@@ -88,12 +114,13 @@ public final class TorrentEngine implements AutoCloseable {
     if (!root.isDirectory() && !root.mkdirs())
       throw new IOException("Temporary storage is unavailable");
     params.setSavePath(root.getPath());
+    torrent_flags_t flags =
+        params.getFlags().and_(TorrentFlags.PAUSED.inv()).and_(TorrentFlags.AUTO_MANAGED.inv());
+    // Known metadata was validated above; only unknown magnets need the payload gate.
     params.setFlags(
-        params
-            .getFlags()
-            .and_(TorrentFlags.PAUSED.inv())
-            .and_(TorrentFlags.AUTO_MANAGED.inv())
-            .or_(TorrentFlags.UPLOAD_MODE));
+        params.getTorrentInfo() == null
+            ? flags.or_(TorrentFlags.UPLOAD_MODE)
+            : flags.and_(TorrentFlags.UPLOAD_MODE.inv()));
     store.metadata(d).getParentFile().mkdirs();
     resumeFiles.put(d.hash, saved);
     ErrorCode error = new ErrorCode(new error_code());
@@ -126,8 +153,20 @@ public final class TorrentEngine implements AutoCloseable {
     if (h != null && h.isValid()) h.saveResumeData(TorrentHandle.SAVE_INFO_DICT);
   }
 
+  public void saveSession() {
+    if (localOnly) return;
+    try {
+      TorrentSessionCache.save(
+          store.sessionCache(),
+          new SessionParams(session.swig().session_state(session_handle.save_dht_state)));
+    } catch (Exception e) {
+      android.util.Log.w("Morrow", "Could not cache torrent discovery state", e);
+    }
+  }
+
   @Override
   public void close() {
+    saveSession();
     session.stop();
   }
 }

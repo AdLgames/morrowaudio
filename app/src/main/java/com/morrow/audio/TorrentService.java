@@ -26,6 +26,9 @@ public final class TorrentService extends Service {
   private PowerManager.WakeLock wake;
   private volatile boolean destroyed;
   private int ticks;
+  private final java.util.concurrent.atomic.AtomicBoolean tickQueued =
+      new java.util.concurrent.atomic.AtomicBoolean();
+  private long lastSessionSave;
 
   public static void command(Context ctx, String action, String id) {
     command(ctx, action, id, null, null);
@@ -125,6 +128,19 @@ public final class TorrentService extends Service {
     return engine == null ? null : engine.handle(d);
   }
 
+  private void wakeForAlert() {
+    if (destroyed || worker.isShutdown() || !tickQueued.compareAndSet(false, true)) return;
+    try {
+      worker.execute(
+          () -> {
+            tickQueued.set(false);
+            tick();
+          });
+    } catch (RejectedExecutionException ignored) {
+      tickQueued.set(false);
+    }
+  }
+
   private void tick() {
     if (destroyed) return;
     try {
@@ -137,7 +153,7 @@ public final class TorrentService extends Service {
           export(d);
           continue;
         }
-        if (engine == null) engine = new TorrentEngine(store, false);
+        if (engine == null) engine = new TorrentEngine(store, false, this::wakeForAlert);
         if (added.add(d.id))
           try {
             engine.add(d);
@@ -198,6 +214,11 @@ public final class TorrentService extends Service {
         } else if (ticks % 30 == 0) engine.checkpoint(h);
       }
       if (++ticks % 5 == 0) store.save();
+      long now = SystemClock.elapsedRealtime();
+      if (engine != null && now - lastSessionSave >= 60000) {
+        engine.saveSession();
+        lastSessionSave = now;
+      }
       int count = 0;
       for (TorrentStore.Download d : store.all()) if (d.active()) count++;
       if (!active && !hasCopies()) {
