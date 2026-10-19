@@ -169,6 +169,11 @@ public final class MainActivity extends Activity {
     return t;
   }
 
+  private void centered(LinearLayout parent, TextView view) {
+    view.setGravity(Gravity.CENTER);
+    parent.addView(view);
+  }
+
   private TextView serif(String s, float size) {
     TextView t = text(s, size, INK);
     t.setTypeface(Typeface.create("serif", Typeface.NORMAL));
@@ -621,9 +626,10 @@ public final class MainActivity extends Activity {
     title.setGravity(Gravity.CENTER);
     center.addView(title);
     gap(center, 8);
-    center.addView(text(b.author, 15, MUTED));
+    centered(center, text(b.author, 15, MUTED));
     gap(center, 12);
-    center.addView(
+    centered(
+        center,
         text(
             Library.time(b.duration())
                 + "  ·  "
@@ -715,7 +721,7 @@ public final class MainActivity extends Activity {
     title.setMaxLines(3);
     center.addView(title);
     gap(center, 8);
-    center.addView(text(b.author, 14, MUTED));
+    centered(center, text(b.author, 14, MUTED));
     body.addView(center);
     gap(body, 24);
     chapterLabel = text("", 12, SAGE);
