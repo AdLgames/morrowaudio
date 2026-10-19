@@ -148,6 +148,7 @@ public class TorrentIntegrationTest {
         DocumentsContract.buildTreeDocumentUri("com.morrow.audio.test.documents", "downloads")
             .toString();
     d.folderName = "Audiobooks";
+    assertTrue(DocumentFile.fromTreeUri(ctx, Uri.parse(d.destination)).canWrite());
     d.hash = "0000000000000000000000000000000000000001";
     d.files.add("Story.wav");
     d.verified = true;

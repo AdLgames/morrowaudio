@@ -69,6 +69,7 @@ public final class TorrentService extends Service {
     TorrentStore.Download d = store.find(intent.getStringExtra("id"));
     if (d == null) return;
     String action = intent.getAction();
+    if (d.finished() && !REMOVE.equals(action)) return;
     if (PAUSE.equals(action)) {
       d.paused = true;
       d.rate = 0;
@@ -94,6 +95,7 @@ public final class TorrentService extends Service {
         store.save();
         return;
       }
+      removePartialDocuments(d);
       d.destination = intent.getStringExtra("destination");
       d.folderName = intent.getStringExtra("folder");
       d.savedUri = "";
@@ -101,6 +103,8 @@ public final class TorrentService extends Service {
         d.outputUris.clear();
         d.copied.clear();
       }
+      TorrentHandle current = handle(d);
+      if (current != null && current.isValid()) current.resume();
       d.savedBytes = 0;
       d.paused = false;
       d.error = "";
@@ -259,7 +263,7 @@ public final class TorrentService extends Service {
         });
   }
 
-  private void forget(TorrentStore.Download d) {
+  private void removePartialDocuments(TorrentStore.Download d) {
     // Keep completed, exported files. Only unfinished documents created by this app are cleaned up.
     for (Map.Entry<String, String> entry : d.outputUris.entrySet())
       if (!d.copied.contains(entry.getKey()))
@@ -268,6 +272,10 @@ public final class TorrentService extends Service {
               getContentResolver(), android.net.Uri.parse(entry.getValue()));
         } catch (Exception ignored) {
         }
+  }
+
+  private void forget(TorrentStore.Download d) {
+    removePartialDocuments(d);
     TorrentStore.erase(store.root(d));
     store.metadata(d).delete();
     new File(store.metadata(d).getPath() + ".resume").delete();
