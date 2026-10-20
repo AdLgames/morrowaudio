@@ -924,6 +924,36 @@ public final class MainActivity extends Activity {
     click(soundLink, this::soundControls);
     body.addView(soundLink);
     gap(body, 22);
+    fitPlayerArtwork(cover);
+  }
+
+  private void fitPlayerArtwork(ArtworkView cover) {
+    ScrollView viewport = scroll;
+    LinearLayout card = summaryCard;
+    Runnable fit =
+        () -> {
+          if (!alive
+              || scroll != viewport
+              || summaryCard != card
+              || viewport.getHeight() == 0
+              || cover.getHeight() == 0) return;
+          // Use the measured viewport, title and controls, including system insets.
+          // Reserve space for a saved preview so it never pushes the card off screen.
+          int beforeAndCard = card.getBottom() - cover.getHeight();
+          int previewRoom = Math.max(0, d(110) - card.getHeight());
+          int available = viewport.getHeight() - beforeAndCard - previewRoom - d(12);
+          int width =
+              Math.min(
+                  d(225),
+                  Math.min(
+                      viewport.getWidth() - d(100), Math.max(d(80), (int) (available / 1.26))));
+          int height = (int) (width * 1.26);
+          if (cover.getLayoutParams().width != width || cover.getLayoutParams().height != height)
+            cover.setLayoutParams(new LinearLayout.LayoutParams(width, height));
+        };
+    viewport.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> viewport.post(fit));
+    card.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> viewport.post(fit));
+    viewport.post(fit);
   }
 
   private void addPlayerSummaryCard() {

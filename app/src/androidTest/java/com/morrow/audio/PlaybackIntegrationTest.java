@@ -138,6 +138,15 @@ public class PlaybackIntegrationTest {
         10000);
     instrumentation.runOnMainSync(
         () -> {
+          View card =
+              findDescription(
+                  activity.getWindow().getDecorView(),
+                  "Chapter summaries. Choose chapters or view your saved recap.");
+          android.graphics.Rect visible = new android.graphics.Rect();
+          assertTrue(card.getGlobalVisibleRect(visible));
+          assertTrue(
+              "The saved preview should also fit without scrolling",
+              visible.height() >= card.getHeight() - 2);
           assertEquals(
               "Mara opens the north gate.",
               ((TextView)
