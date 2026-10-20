@@ -113,7 +113,7 @@ abstract class CalmActivity extends Activity {
     IconView back = new IconView(this, "back", SAGE);
     back.setOnClickListener(v -> finish());
     top.addView(back, new LinearLayout.LayoutParams(d(48), d(48)));
-    top.addView(text("M O R R O W", 11, SAGE));
+    top.addView(text("N A R R U M O", 11, SAGE));
     body.addView(top);
     gap(body, 24);
     body.addView(serif(title, 34));

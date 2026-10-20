@@ -24,7 +24,7 @@ final class AiTrialClient {
         || uri.getRawQuery() != null
         || uri.getHost().equalsIgnoreCase("api.openai.com"))
       throw new IOException(
-          "Use the HTTPS /ai address of your private Morrow test server, not an OpenAI API"
+          "Use the HTTPS /ai address of your private Narrumo test server, not an OpenAI API"
               + " address.");
     return uri.toURL();
   }
@@ -47,7 +47,7 @@ final class AiTrialClient {
           "Enter your private test access token from the server setup. Don’t enter an OpenAI API"
               + " key.");
     if (token.trim().startsWith("sk-"))
-      throw new IOException("Use the Morrow test access token, not your OpenAI API key.");
+      throw new IOException("Use the Narrumo test access token, not your OpenAI API key.");
     HttpsURLConnection call = (HttpsURLConnection) endpoint(address).openConnection();
     connection = call;
     try {

@@ -25,6 +25,9 @@ public final class TorrentService extends Service {
   private TorrentEngine engine;
   private PowerManager.WakeLock wake;
   private volatile boolean destroyed;
+  private final Handler main = new Handler(Looper.getMainLooper());
+  private volatile int latestStartId;
+  private int processedStartId;
   private int ticks;
   private final java.util.concurrent.atomic.AtomicBoolean tickQueued =
       new java.util.concurrent.atomic.AtomicBoolean();
@@ -64,8 +67,29 @@ public final class TorrentService extends Service {
 
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
-    if (intent != null) worker.execute(() -> act(intent));
+    latestStartId = startId;
+    // A new command can reach an existing instance after its previous transfer finished.
+    // Every startForegroundService call must promote the service again, not just onCreate.
+    startForeground(72, notification("Preparing your download…"));
+    worker.execute(
+        () -> {
+          try {
+            if (intent != null) act(intent);
+          } finally {
+            processedStartId = startId;
+          }
+        });
     return START_NOT_STICKY;
+  }
+
+  private void stopWhenIdle() {
+    int completedStartId = processedStartId;
+    main.post(
+        () -> {
+          if (destroyed || completedStartId != latestStartId) return;
+          // Serialize shutdown with new starts. An old worker tick must not stop a newer command.
+          if (stopSelfResult(completedStartId)) stopForeground(STOP_FOREGROUND_REMOVE);
+        });
   }
 
   private void act(Intent intent) {
@@ -222,8 +246,7 @@ public final class TorrentService extends Service {
       int count = 0;
       for (TorrentStore.Download d : store.all()) if (d.active()) count++;
       if (!active && !hasCopies()) {
-        stopForeground(STOP_FOREGROUND_REMOVE);
-        stopSelf();
+        stopWhenIdle();
       } else
         getSystemService(NotificationManager.class)
             .notify(
@@ -234,8 +257,7 @@ public final class TorrentService extends Service {
                         : count + " audiobook transfers in progress"));
     } catch (Exception | LinkageError e) {
       for (TorrentStore.Download d : store.all()) if (d.active()) fail(d, e);
-      stopForeground(STOP_FOREGROUND_REMOVE);
-      stopSelf();
+      stopWhenIdle();
     }
   }
 
@@ -325,7 +347,7 @@ public final class TorrentService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     return new NotificationCompat.Builder(this, CHANNEL)
         .setSmallIcon(android.R.drawable.stat_sys_download)
-        .setContentTitle("Morrow Audio downloads")
+        .setContentTitle("Narrumo downloads")
         .setContentText(message)
         .setContentIntent(open)
         .setOnlyAlertOnce(true)

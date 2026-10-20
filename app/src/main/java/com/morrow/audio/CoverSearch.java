@@ -48,7 +48,7 @@ public final class CoverSearch {
     HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
     c.setConnectTimeout(15000);
     c.setReadTimeout(20000);
-    c.setRequestProperty("User-Agent", "MorrowAudio/1.0 (personal audiobook library)");
+    c.setRequestProperty("User-Agent", "Narrumo/1.4.1 (personal audiobook library)");
     if (c.getResponseCode() != 200) {
       int status = c.getResponseCode();
       c.disconnect();

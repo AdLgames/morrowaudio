@@ -14,7 +14,7 @@ public final class HelpActivity extends CalmActivity {
     section(
         "Bring your books together",
         "Tap + in your library to add a folder or choose audio files. Keep one book in each folder."
-            + " Numbered chapter files and CD/disc subfolders are ordered naturally. Morrow reads"
+            + " Numbered chapter files and CD/disc subfolders are ordered naturally. Narrumo reads"
             + " supported embedded M4B chapters too.");
     section(
         "Keep your files close",
@@ -34,8 +34,8 @@ public final class HelpActivity extends CalmActivity {
             + " permissions must be granted again after reinstalling.");
     section(
         "Update without starting over",
-        "Download the latest signed APK from the Morrow website and install it over the current"
-            + " app. Keep Morrow installed to preserve your local library. Updates are manual for"
+        "Download the latest signed APK from the Narrumo website and install it over the current"
+            + " app. Keep Narrumo installed to preserve your local library. Updates are manual for"
             + " now. Make a backup first, and use the same ARM64 or ARM32 version as your current"
             + " installation.");
     body.addView(button("Check for updates", true, () -> open("/#download")));
@@ -43,8 +43,8 @@ public final class HelpActivity extends CalmActivity {
     section(
         "Samsung listening in the background",
         "If your phone stops playback when the screen turns off, check App info → Battery for"
-            + " Morrow. Review Samsung’s battery restrictions and allow playback notifications. You"
-            + " can also use Bluetooth and lock-screen controls.");
+            + " Narrumo. Review Samsung’s battery restrictions and allow playback notifications."
+            + " You can also use Bluetooth and lock-screen controls.");
     section(
         "Try the AI reading lab",
         "The early test works with a passage you paste, not the audio in your library. It connects"

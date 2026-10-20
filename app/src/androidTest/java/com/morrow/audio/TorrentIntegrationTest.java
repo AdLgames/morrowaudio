@@ -184,6 +184,10 @@ public class TorrentIntegrationTest {
     while (store.find(d.id) != null && SystemClock.elapsedRealtime() < until) Thread.sleep(100);
     assertNull(store.find(d.id));
     assertTrue(folder.listFiles()[0].exists());
+    until = SystemClock.elapsedRealtime() + 10000;
+    while (TorrentService.running && SystemClock.elapsedRealtime() < until) Thread.sleep(50);
+    assertFalse(
+        "The idle transfer service must stop after its final command", TorrentService.running);
     i.runOnMainSync(screen::finish);
   }
 

@@ -83,8 +83,10 @@ public class PlaybackIntegrationTest {
     screenshot(instrumentation, ctx, "player");
     instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
     instrumentation.waitForIdleSync();
-    instrumentation.runOnMainSync(
-        () -> assertTrue(containsText(activity.getWindow().getDecorView(), "A little escape.")));
+    await(
+        instrumentation,
+        () -> containsText(activity.getWindow().getDecorView(), "A little escape."),
+        10000);
     instrumentation.runOnMainSync(
         () -> {
           controller.seekTo(0, 3000);

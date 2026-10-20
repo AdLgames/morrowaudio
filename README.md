@@ -1,12 +1,14 @@
-# Morrow Audio
+# Narrumo
+
+Formerly Morrow Audio. Version 1.4.1 (build 7) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
 ## Install on Samsung
 
-Download [`MorrowAudio.apk`](dist/MorrowAudio.apk), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
+Download [`Narrumo.apk`](dist/Narrumo.apk), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
-Open Morrow and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
 
 ## Features
 
@@ -29,10 +31,10 @@ All features are available without purchases or subscriptions.
 
 - **Primary colour:** Settings → Primary colour offers Sage, Dusty Blue, Rose Clay, Lavender and Cocoa. The saved accent colours highlighted text, buttons, player/download controls, system dialogs and the home screen widget against the cream background. Backups include this choice.
 - **Equalizer & volume boost:** open Settings or the player’s sound link. Five bands, speech/warmth presets and 0–12 dB boost apply in the playback pipeline, including Bluetooth. A gentle limiter controls peaks. Flat or disabled controls preserve the original PCM samples. Changes apply while listening.
-- **Home screen widget:** use Settings → Home screen widget, or long-press your Samsung home screen → Widgets → Morrow Audio. The resizable widget shows the current book and progress, with play/pause, rewind 15 seconds, and forward 30 seconds. Tap the book to open its player.
+- **Home screen widget:** use Settings → Home screen widget, or long-press your Samsung home screen → Widgets → Narrumo. The resizable widget shows the current book and progress, with play/pause, rewind 15 seconds, and forward 30 seconds. Tap the book to open its player.
 - **Backup & restore:** Settings → Backup & restore writes a portable `.morrow.zip` to a location you select. It includes your catalog, listening progress, bookmarks, covers and sound settings. Audio files and torrent transfers are excluded. Restoring updates matching books while keeping other books, and pauses playback first. ZIP entries, sizes, references and images are validated before applying the backup; the library file is replaced atomically. The archive is not encrypted: store it somewhere you trust.
 - **Reconnect folders:** Android does not transfer file permissions in backups. After reinstalling or moving audio, use Reconnect an audio folder to select its original folder or corresponding replacement. Standard hierarchical document paths are remapped while preserving progress/bookmarks; opaque provider IDs may need the original folder layout.
-- **Uncapped downloads:** Morrow applies no download-rate limit. Peer discovery remains tuned for quick startup. Swarm and network availability still determine actual speed.
+- **Uncapped downloads:** Narrumo applies no download-rate limit. Peer discovery remains tuned for quick startup. Swarm and network availability still determine actual speed.
 
 ## Foundation polish and AI reading lab (1.3.0)
 
@@ -54,11 +56,11 @@ BitTorrent requires available peers and exchanges pieces while active; sharing s
 
 Torrent downloads require Android 9 or newer; local playback supports Android 8.
 
-The main APK is for ARM64 Samsung phones. For a phone running 32-bit Android, use `dist/MorrowAudio-arm32.apk`. Both use the same signing certificate and version. Build the 32-bit release with `./gradlew -PmorrowArm32 assembleRelease`. Debug builds include ARM64, ARMv7 and x86_64 for emulator checks.
+The main APK is for ARM64 Samsung phones. For a phone running 32-bit Android, use `dist/Narrumo-arm32.apk`. Both use the same signing certificate and version. Build the 32-bit release with `./gradlew -PmorrowArm32 assembleRelease`. Debug builds include ARM64, ARMv7 and x86_64 for emulator checks.
 
 ## Privacy and storage
 
-Only file/folder URIs you choose are granted to Morrow through Android's Storage Access Framework. There is no broad storage permission, analytics, login, or cloud sync. Playback is offline. Torrent transfers connect to trackers/peers and exchange pieces while downloading. Searching sends your typed title and author to `https://openlibrary.org`; choosing an edition downloads its cover from `https://covers.openlibrary.org`. Cover rights belong to their respective owners. Library state and cached covers live in app-private storage; Android backup is disabled. Uninstalling clears progress and bookmarks, but leaves original audio alone. Playback position is saved on state changes and every five seconds during the service lifetime.
+Only file/folder URIs you choose are granted to Narrumo through Android's Storage Access Framework. There is no broad storage permission, analytics, login, or cloud sync. Playback is offline. Torrent transfers connect to trackers/peers and exchange pieces while downloading. Searching sends your typed title and author to `https://openlibrary.org`; choosing an edition downloads its cover from `https://covers.openlibrary.org`. Cover rights belong to their respective owners. Library state and cached covers live in app-private storage; Android backup is disabled. Uninstalling clears progress and bookmarks, but leaves original audio alone. Playback position is saved on state changes and every five seconds during the service lifetime.
 
 Use **Unrestricted** battery access in Samsung's App info → Battery settings if your phone stops background playback. Original files must remain available; moving them or removing an SD card breaks playback until they are reimported.
 
@@ -87,3 +89,7 @@ For on-device integration checks, run `./gradlew connectedDebugAndroidTest` with
 - `ArtworkView`, `IconView`: locally drawn original artwork and interface icons.
 
 Third-party notices are included inside the app. This is a local audiobook app; network Plex servers and cross-device synchronization are outside this version's scope.
+
+
+### Read along and AI companion (1.4.0)
+Open a book's player → **Read along · recap · illustrate**. Import a chapter SRT/VTT or explicitly transcribe up to five minutes already reached in playback. Completed timed lines appear as you listen. Long-press to recap, ask about, or illustrate a passage. Catch me up uses available recent transcript, with a listening cutoff and quoted evidence. One image request creates a medium-quality, four-panel graphic-novel page; three image attempts per UTC day are shared across the private server. Saved pages reopen locally and export as JPEG. Transcripts export as SRT; these assets are not included in library backups. Live features require the updated [private backend](ai-backend/README.md); local listening/import/export remain free and offline.

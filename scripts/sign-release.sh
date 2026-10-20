@@ -8,6 +8,6 @@ mkdir -p dist
 "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
   --ks "$MORROW_KEYSTORE" --ks-key-alias morrow \
   --ks-pass "file:$MORROW_PASSWORD_FILE" \
-  --out dist/MorrowAudio.apk app/build/outputs/apk/release/app-release-unsigned.apk
-"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/MorrowAudio.apk
-sha256sum dist/MorrowAudio.apk > dist/MorrowAudio.apk.sha256
+  --out dist/Narrumo.apk app/build/outputs/apk/release/app-release-unsigned.apk
+"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/Narrumo.apk
+sha256sum dist/Narrumo.apk > dist/Narrumo.apk.sha256
