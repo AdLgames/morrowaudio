@@ -2,12 +2,12 @@
 
 The current signed release is **1.5.0 / build 8**:
 
-- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/downloads/Narrumo-1.5.0.apk) — 55,430,141 bytes
-- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/downloads/Narrumo-arm32-1.5.0.apk) — 54,533,123 bytes
+- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.5.0) — 55,430,141 bytes
+- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.5.0) — 54,533,123 bytes
 
 SHA-256 checksum files are retained alongside this document. Both APKs use the
 existing release certificate and install over previous Morrow/Narrumo versions.
-The larger APKs include the offline English speech model. Source builds package
+The larger APKs include the offline English speech model. The download page prepares and SHA-256 verifies one APK in your browser before saving; no separate model download is needed. Source builds package
 the verified model automatically; `scripts/sign-release.sh` signs an ARM64 build
 with the private key you supply. Never commit signing credentials.
 
