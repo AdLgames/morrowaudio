@@ -89,21 +89,21 @@ public class ChapterSummariesIntegrationTest {
       try (ParcelFileDescriptor ignored =
           i.getUiAutomation()
               .executeShellCommand("screencap -p /sdcard/morrow-chapter-summaries.png")) {}
-      i.runOnMainSync(
-          () ->
-              find(activity.getWindow().getDecorView(), "Summarise chosen chapter").performClick());
-      await(
-          i,
-          () -> {
-            var root = i.getUiAutomation().getRootInActiveWindow();
-            return root != null
-                && !root.findAccessibilityNodeInfosByText("Back to the story").isEmpty();
-          },
-          10000);
+      androidx.test.espresso.Espresso.onView(
+              androidx.test.espresso.matcher.ViewMatchers.withContentDescription(
+                  "Summarise chosen chapter"))
+          .perform(
+              androidx.test.espresso.action.ViewActions.scrollTo(),
+              androidx.test.espresso.action.ViewActions.click());
+      androidx.test.espresso.Espresso.onView(
+              androidx.test.espresso.matcher.ViewMatchers.withText("Back to the story"))
+          .check(
+              androidx.test.espresso.assertion.ViewAssertions.matches(
+                  androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));
       try (ParcelFileDescriptor ignored =
           i.getUiAutomation().executeShellCommand("screencap -p /sdcard/morrow-recap-sheet.png")) {}
       // Closing the styled sheet reopens the local cached recap without an AI connection.
-      i.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+      androidx.test.espresso.Espresso.pressBack();
       if (Build.VERSION.SDK_INT >= 33) {
         try (ParcelFileDescriptor grant =
                 i.getUiAutomation()
