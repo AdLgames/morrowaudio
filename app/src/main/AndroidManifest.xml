@@ -17,6 +17,7 @@
         <activity android:name=".HelpActivity" android:exported="false" />
         <activity android:name=".ChapterSummariesActivity" android:exported="false" />
         <service android:name=".ChapterSummaryService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync" />
+        <activity android:name=".SpeechSettingsActivity" android:exported="false" />
         <activity android:name=".TranscriptActivity" android:exported="false" />
         <activity android:name=".AiTrialActivity" android:exported="false" />
         <activity android:name=".DownloadsActivity" android:exported="false" />

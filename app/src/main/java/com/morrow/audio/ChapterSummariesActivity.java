@@ -209,6 +209,15 @@ public final class ChapterSummariesActivity extends CalmActivity {
                 startActivity(
                     new Intent(this, AiTrialActivity.class).putExtra("settingsOnly", true))));
     gap(body, 10);
+    body.addView(
+        button(
+            "Speech quality & book spellings",
+            false,
+            () ->
+                startActivity(
+                    new Intent(this, SpeechSettingsActivity.class)
+                        .putExtra("book", book == null ? "" : book.id))));
+    gap(body, 10);
     if (Build.VERSION.SDK_INT >= 33
         && !getSystemService(NotificationManager.class).areNotificationsEnabled()) {
       body.addView(

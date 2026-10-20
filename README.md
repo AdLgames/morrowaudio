@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.9.1 (build 14) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 2.0.0 (build 15) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,14 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## Accurate local speech (2.0.0)
+
+Open **AI → Speech quality & book spellings → Download Accurate**. A one-time, SHA-256-verified 60 MB Whisper base.en Q5_1 model downloads from Hugging Face; subsequent recognition is offline. Fast Vosk stays bundled and selected until you explicitly choose Accurate. Whisper produces punctuation and natural segments and accepts up to 100 words of local spelling hints, including approved Book words behind the listening cutoff. Hints guide decoding, not guaranteed recognition or learned pronunciations. Nothing is trained from book audio. Larger models use more memory/CPU; names, noise and speech can still be misheard.
+
+Existing transcripts are retained. In Chapter studio, choose **Rebuild this chapter’s transcript** after switching recognisers; the current text is preserved, and **Restore previous transcript** can bring it back. Rebuilding invalidates that chapter’s recap, requiring a separately authorised new recap request. Then transcribe heard sections locally or select completed chapters for background processing. The model and spelling hints are private device data, excluded from library backups. The download host receives only the public model request, never audio or book metadata.
+
+Native recognition uses pinned **whisper.cpp 1.9.5** (MIT), compiled for ARM64, ARMv7 and x86_64 with 16 KB alignment; model hash \`4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f\`. Builds need Android NDK 27.2.12479018, CMake and Ninja. The test-only public-domain JFK fixture and verified model exercise real offline JNI recognition; the test model is excluded from release APKs. We cannot claim a Dune word-error-rate improvement without a recording and checked reference text.
 
 ## Illustration review (1.9.1)
 

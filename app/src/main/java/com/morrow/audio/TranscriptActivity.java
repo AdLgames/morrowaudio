@@ -143,6 +143,19 @@ public final class TranscriptActivity extends CalmActivity {
             12,
             MUTED));
     gap(body, 12);
+    body.addView(
+        button(
+            "Speech quality & book spellings",
+            false,
+            () ->
+                startActivity(
+                    new Intent(this, SpeechSettingsActivity.class).putExtra("book", book.id))));
+    gap(body, 12);
+    body.addView(
+        button("Rebuild this chapter’s transcript", false, () -> rebuildTranscript(false)));
+    gap(body, 8);
+    body.addView(button("Restore previous transcript", false, () -> rebuildTranscript(true)));
+    gap(body, 12);
     transcript = text("", 17, INK);
     transcript.setTextIsSelectable(true);
     transcript.setContentDescription("Audiobook transcript up to playback position");
@@ -244,8 +257,9 @@ public final class TranscriptActivity extends CalmActivity {
 
     body.addView(
         text(
-            "Offline English · no audio upload or API charges. First use prepares about 71 MB of"
-                + " speech data. Unusual names and accents may need corrections.",
+            "Offline English · no audio upload or API charges. Upgrade to Accurate in Speech"
+                + " quality for punctuation and book spelling hints. Fast remains available. Names"
+                + " can still be misheard.",
             13,
             MUTED));
     gap(body, 12);
@@ -824,6 +838,61 @@ public final class TranscriptActivity extends CalmActivity {
         .post(() -> ((ScrollView) body.getParent()).smoothScrollTo(0, result.getTop()));
   }
 
+  private void rebuildTranscript(boolean restore) {
+    if (busy || illustrations.busy() || ChapterSummaryService.running) {
+      tell("Pause the current transcription or chapter job first.");
+      return;
+    }
+    final int index = chapter;
+    if (restore && !store.hasPrevious(book, book.chapters.get(index))) {
+      tell("There is no previous transcript for this chapter yet.");
+      return;
+    }
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Local transcript",
+            restore ? "Restore the previous text?" : "Rebuild heard text?",
+            restore
+                ? "Replaces current transcript text with the preserved previous version. The"
+                      + " chapter recap will need regenerating."
+                : "Preserves the current transcript as the previous version, then clears it for new"
+                      + " recognition. Choose Accurate and save book spellings first for better"
+                      + " results. You can restore the previous text. The chapter recap will need"
+                      + " regenerating.");
+    sheet.action(
+        restore ? "Restore previous transcript" : "Rebuild with current recogniser",
+        true,
+        () ->
+            runJob(
+                () -> {
+                  Library.Chapter source = book.chapters.get(index);
+                  synchronized (TranscriptStore.class) {
+                    if (restore) store.save(book, source, store.previous(book, source));
+                    else {
+                      store.archive(book, source);
+                      store.save(
+                          book,
+                          source,
+                          new TranscriptStore.Data(new ArrayList<>(), new ArrayList<>()));
+                    }
+                  }
+                  handler.post(
+                      () -> {
+                        if (alive && chapter == index) {
+                          loadChapter();
+                          tell(
+                              restore
+                                  ? "Previous transcript restored."
+                                  : "Ready to transcribe again. Tap Transcribe on this phone, or"
+                                        + " select the chapter in AI for background processing.");
+                        }
+                      });
+                }));
+    sheet.action("Keep current text", false, () -> {});
+    sheet.show();
+  }
+
   private void transcribe() {
     if (busy || (illustrations != null && illustrations.busy())) {
       tell("A request is already running.");
@@ -866,7 +935,8 @@ public final class TranscriptActivity extends CalmActivity {
                                 workMessage = message;
                                 render();
                               }
-                            }));
+                            }),
+                    book);
             OfflineTranscriber.checkCancelled();
             if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
             synchronized (TranscriptStore.class) {

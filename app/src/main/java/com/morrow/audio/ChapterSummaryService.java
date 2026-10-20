@@ -194,7 +194,8 @@ public final class ChapterSummaryService extends Service {
           try {
             clip = AudioClipper.extract(this, chapter, from, end);
             OfflineTranscriber.Result result =
-                OfflineTranscriber.transcribe(this, clip, message -> progress(label + message));
+                OfflineTranscriber.transcribe(
+                    this, clip, message -> progress(label + message), book);
             check();
             long processed = Math.min(end, from + result.durationMs());
             if (end - processed <= 10) processed = end;
