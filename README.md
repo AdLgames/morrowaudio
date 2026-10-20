@@ -121,3 +121,15 @@ Third-party notices are included inside the app. This is a local audiobook app; 
 
 ### Read along and AI companion (1.4.0)
 Open a book's player → **Read along · recap · illustrate**. Import a chapter SRT/VTT or explicitly transcribe up to five minutes already reached in playback. Completed timed lines appear as you listen. Long-press to recap, ask about, or illustrate a passage. Catch me up uses available recent transcript, with a listening cutoff and quoted evidence. One image request creates a medium-quality, four-panel graphic-novel page; three image attempts per UTC day are shared across the private server. Saved pages reopen locally and export as JPEG. Transcripts export as SRT; these assets are not included in library backups. Recaps, questions and illustrations require the [private backend](ai-backend/README.md). In 1.5.0, transcription also runs free and offline with the bundled English recognizer.
+
+## Catch up and chapter memories (1.8.0)
+
+The home-screen Catch up shortcut opens or creates the last completed chapter’s recap. After one informed opt-in, new chapter summaries start in one tap; disable this in Catch up at any time. Saved recaps always open locally. The player and notifications use a cream, rounded recap sheet with serif headings and the selected accent.
+
+The Catch up bottom tab has book/chapter dropdowns, an optional batch picker (up to 25), saved recaps and graphic scenes linked to exact chapter source identities. Older unambiguous single-file scenes are recognised; other older pages remain in Read along. New scene generation uses the existing passage selection and explicit image-charge confirmation.
+
+The private server has a separate shared allowance of **25 chapter attempts per UTC day**, plus the existing 20 other text attempts and three medium-quality image attempts. Failed attempts count; cached reopening and the authenticated `/chapter-usage` endpoint are free. Usage is fetched from the server, with an explicitly labelled cached value when offline. This is a private-server allowance, not a paid-user entitlement system.
+
+Chapter prompts now cover grounded emotional movement, stakes, themes and plot turns. At most four earlier saved recaps (4,500 characters total) provide story context; never later chapters or external book knowledge. Overview plus points remain within 100 words, with exact quotes from the current chapter. Context is checkpointed before the one generation attempt so interrupted work only looks up that same result. Existing v1 interrupted jobs retain their original lookup identity.
+
+The newest completed chapter posts one replaceable notification with a read action and a private lock-screen version. Notifications require Android permission. Rewinding before its chapter removes it. Processing still needs user initiation; no boot job, scheduled generation or automatic paid retry is added. Local data remains excluded from library backups.

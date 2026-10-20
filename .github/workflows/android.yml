@@ -54,6 +54,7 @@ jobs:
             adb pull /sdcard/morrow-ai-lab.png app/build/reports/device-screenshots/ai-lab.png
             adb pull /sdcard/morrow-transcript.png app/build/reports/device-screenshots/transcript.png
             adb pull /sdcard/morrow-chapter-summaries.png app/build/reports/device-screenshots/chapter-summaries.png
+            adb pull /sdcard/morrow-recap-sheet.png app/build/reports/device-screenshots/recap-sheet.png
       - uses: actions/upload-artifact@v4
         with:
           name: Narrumo-APK

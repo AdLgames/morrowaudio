@@ -75,13 +75,14 @@ final class CompanionClient {
               case 404 ->
                   route.equals("/chapter-summary")
                       ? "No completed chapter result is cached. Select this chapter in a new batch"
-                            + " to authorise another attempt."
+                          + " to authorise another attempt."
                       : "Your AI server needs the latest reading companion update. The older"
-                            + " passage test still works.";
+                          + " passage test still works.";
               case 409 -> "This request is still generating. Wait a moment before reopening it.";
               case 429 ->
-                  "The private server’s daily allowance is used up. Text: 20 requests; audio: 30"
-                      + " minutes; images: 3 attempts. Resets at midnight UTC.";
+                  "The daily allowance or this chapter’s attempt is used up. Chapters: 25 attempts;"
+                      + " other text: 20; audio: 30 minutes; images: 3 attempts. Resets at midnight"
+                      + " UTC.";
               case 503 -> "The private server needs its AI configuration checked.";
               default ->
                   "The AI request could not finish. It will not retry automatically; failed"

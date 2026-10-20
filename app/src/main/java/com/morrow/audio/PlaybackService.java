@@ -254,6 +254,7 @@ public final class PlaybackService extends MediaSessionService {
     }
     getSharedPreferences("settings", 0).edit().putString("current", b.id).apply();
     library.save();
+    RecapNotifications.hideIfUnheard(this);
     getSharedPreferences("widget", 0)
         .edit()
         .putLong("updated", SystemClock.elapsedRealtime())

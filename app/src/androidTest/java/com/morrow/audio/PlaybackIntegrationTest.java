@@ -154,6 +154,42 @@ public class PlaybackIntegrationTest {
                           activity.getWindow().getDecorView(), "Saved chapter recap preview"))
                   .getText()
                   .toString());
+        });
+    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+    await(
+        instrumentation,
+        () ->
+            findDescription(
+                    activity.getWindow().getDecorView(), "Catch up on the last completed chapter")
+                != null,
+        10000);
+    screenshot(instrumentation, ctx, "library");
+    instrumentation.runOnMainSync(
+        () ->
+            findDescription(
+                    activity.getWindow().getDecorView(), "Catch up on the last completed chapter")
+                .performClick());
+    await(
+        instrumentation,
+        () -> {
+          var active = instrumentation.getUiAutomation().getRootInActiveWindow();
+          return active != null
+              && !active.findAccessibilityNodeInfosByText("Back to the story").isEmpty();
+        },
+        10000);
+    // No AI connection is needed: the home shortcut opens the saved prior chapter directly.
+    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+    await(
+        instrumentation,
+        () -> containsText(activity.getWindow().getDecorView(), "A little escape."),
+        10000);
+    instrumentation.runOnMainSync(
+        () -> assertTrue(tap(activity.getWindow().getDecorView(), "Test Book")));
+    instrumentation.runOnMainSync(
+        () -> assertTrue(tap(activity.getWindow().getDecorView(), "Resume listening")));
+    instrumentation.runOnMainSync(
+        () -> {
           controller.pause();
           controller.seekTo(0, 500);
         });
