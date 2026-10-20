@@ -1,5 +1,6 @@
 import {companion,companionBudget} from './companion.mjs';
 import {vocabulary,vocabularyBudget} from './vocabulary.mjs';
+import {chapterSummary,chapterBudget} from './chapter-summary.mjs';
 const MAX_BYTES = 65536;
 const fallback = 'I couldn’t find that in this passage.';
 const json = (body, status = 200) => new Response(JSON.stringify(body), {status, headers: {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -31,11 +32,12 @@ function validate(body) {
 export async function handleRequest(request, env, fetchImpl = fetch) {
   const path = new URL(request.url).pathname;
   if (path === '/health' && request.method === 'GET') return json({status:env.OPENAI_API_KEY && env.OPENAI_MODEL && env.MORROW_TRIAL_TOKEN?.length>=24 && env.TRIAL_BUDGET ? 'ready' : 'setup_required'});
-  if (!['/ai','/companion','/transcribe','/vocabulary'].includes(path)) return failed('Not found',404);
+  if (!['/ai','/companion','/transcribe','/vocabulary','/chapter-summary'].includes(path)) return failed('Not found',404);
   if (request.method !== 'POST') return failed('POST required',405);
   if (!env.MORROW_TRIAL_TOKEN || env.MORROW_TRIAL_TOKEN.length<24 || !env.OPENAI_API_KEY || !env.OPENAI_MODEL || !env.TRIAL_BUDGET)
     return failed('AI server setup is incomplete',503);
   if (!await sameToken(request.headers.get('Authorization')?.replace(/^Bearer /,''),env.MORROW_TRIAL_TOKEN)) return failed('Access token required',401);
+  if (path === '/chapter-summary') return chapterSummary(request,env,fetchImpl);
   if (path === '/vocabulary') return vocabulary(request,env,fetchImpl);
   if (path !== '/ai') return companion(request,env,fetchImpl);
   if (!(request.headers.get('Content-Type')||'').toLowerCase().startsWith('application/json')) return failed('JSON required',400);
@@ -73,6 +75,7 @@ export class TrialBudget {
   constructor(state,env) { this.state=state; this.env=env; }
   async fetch(request) {
     if (request.method!=='POST') return failed('POST required',405);
+    if(new URL(request.url).pathname.startsWith('/chapter-'))return chapterBudget(this.state,request,this.env);
     if(new URL(request.url).pathname.startsWith('/vocabulary-'))return vocabularyBudget(this.state,request,this.env);
     if(new URL(request.url).pathname!=='/reserve')return companionBudget(this.state,request);
     const configured=Number(this.env.AI_DAILY_LIMIT||20);

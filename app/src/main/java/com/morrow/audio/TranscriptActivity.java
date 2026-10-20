@@ -676,6 +676,12 @@ public final class TranscriptActivity extends CalmActivity {
       tell("A request is already running.");
       return;
     }
+    if (ChapterSummaryService.running) {
+      tell(
+          "Chapter processing is running in the background. Pause it on the chapter summaries"
+              + " screen before transcribing here.");
+      return;
+    }
     long end = chapterCutoff(), from = TranscriptTimeline.nextStart(data.ranges(), end);
     end = Math.min(end, from + 300000);
     final long start = from, stop = end;
@@ -710,18 +716,20 @@ public final class TranscriptActivity extends CalmActivity {
                             }));
             OfflineTranscriber.checkCancelled();
             if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
-            TranscriptStore.Data prior = store.load(book, source);
-            List<TranscriptTimeline.Cue> cues = new ArrayList<>(prior.cues());
-            for (TranscriptTimeline.Cue cue : reply.cues())
-              cues.add(
-                  new TranscriptTimeline.Cue(
-                      start + cue.startMs(), start + cue.endMs(), cue.text()));
-            cues.sort(Comparator.comparingLong(TranscriptTimeline.Cue::startMs));
-            List<TranscriptTimeline.Range> ranges = new ArrayList<>(prior.ranges());
-            ranges.add(
-                new TranscriptTimeline.Range(start, Math.min(stop, start + reply.durationMs())));
-            OfflineTranscriber.checkCancelled();
-            store.save(book, source, new TranscriptStore.Data(cues, ranges));
+            synchronized (TranscriptStore.class) {
+              TranscriptStore.Data prior = store.load(book, source);
+              List<TranscriptTimeline.Cue> cues = new ArrayList<>(prior.cues());
+              for (TranscriptTimeline.Cue cue : reply.cues())
+                cues.add(
+                    new TranscriptTimeline.Cue(
+                        start + cue.startMs(), start + cue.endMs(), cue.text()));
+              cues.sort(Comparator.comparingLong(TranscriptTimeline.Cue::startMs));
+              List<TranscriptTimeline.Range> ranges = new ArrayList<>(prior.ranges());
+              ranges.add(
+                  new TranscriptTimeline.Range(start, Math.min(stop, start + reply.durationMs())));
+              OfflineTranscriber.checkCancelled();
+              store.save(book, source, new TranscriptStore.Data(cues, ranges));
+            }
             handler.post(
                 () -> {
                   if (alive) {
@@ -1066,6 +1074,10 @@ public final class TranscriptActivity extends CalmActivity {
     if (code != RESULT_OK || intent == null || intent.getData() == null) return;
     Uri uri = intent.getData();
     if (request == 71) {
+      if (ChapterSummaryService.running) {
+        tell("Pause background chapter processing before replacing its transcript.");
+        return;
+      }
       final int index = importChapter;
       runJob(
           () -> {

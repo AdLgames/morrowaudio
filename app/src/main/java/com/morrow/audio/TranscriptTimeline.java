@@ -37,6 +37,12 @@ final class TranscriptTimeline {
     return Math.min(at, cutoff);
   }
 
+  static Range nextWindow(List<Range> ranges, long duration, long maxLength) {
+    long start = nextStart(ranges, duration), end = Math.min(duration, start + maxLength);
+    for (Range range : ranges) if (range.startMs() > start) end = Math.min(end, range.startMs());
+    return new Range(start, end);
+  }
+
   private static long time(String value) throws IOException {
     String[] parts = value.replace(',', '.').split(":");
     if (parts.length < 2 || parts.length > 3) throw new IOException("Invalid subtitle timestamp");

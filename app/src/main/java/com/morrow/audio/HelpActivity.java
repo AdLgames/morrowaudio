@@ -57,7 +57,10 @@ public final class HelpActivity extends CalmActivity {
             () -> startActivity(new Intent(this, AiTrialActivity.class))));
     section(
         "Read along for free",
-        "Open a book and choose Read along · free offline transcript. Transcribe already-heard"
+        "Open a book → Chapter summaries to select completed chapters for background processing."
+            + " Confirm one AI request per chapter for a saved overview and key points. You can"
+            + " leave the screen and pause/resume from its notification or chapter screen. For free"
+            + " timed text, choose Open read-along text & book words. Transcribe already-heard"
             + " English audio on this phone, up to five minutes per tap. No AI connection, audio"
             + " upload or API charge is needed. Keep this screen open; Cancel stops unfinished"
             + " work. The bundled model needs about 71 MB of private storage on first use and uses"

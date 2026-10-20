@@ -723,10 +723,11 @@ public final class MainActivity extends Activity {
     gap(body, 12);
     body.addView(
         button(
-            "Read along · free offline transcript",
+            "Chapter summaries · select chapters",
             false,
             () ->
-                startActivity(new Intent(this, TranscriptActivity.class).putExtra("book", b.id))));
+                startActivity(
+                    new Intent(this, ChapterSummariesActivity.class).putExtra("book", b.id))));
     gap(body, 28);
     if (!b.description.trim().isEmpty()) {
       body.addView(text(b.description, 14, MUTED));
@@ -897,13 +898,14 @@ public final class MainActivity extends Activity {
     click(soundLink, this::soundControls);
     body.addView(soundLink);
     gap(body, 12);
-    TextView transcriptLink = text("Read along · recap · illustrate", 15, SAGE);
+    TextView transcriptLink = text("Chapter summaries · select chapters", 15, SAGE);
     transcriptLink.setGravity(Gravity.CENTER);
     pad(transcriptLink, 12, 16);
     transcriptLink.setBackground(bg(SOFT, 18));
     click(
         transcriptLink,
-        () -> startActivity(new Intent(this, TranscriptActivity.class).putExtra("book", b.id)));
+        () ->
+            startActivity(new Intent(this, ChapterSummariesActivity.class).putExtra("book", b.id)));
     body.addView(transcriptLink);
     gap(body, 22);
   }

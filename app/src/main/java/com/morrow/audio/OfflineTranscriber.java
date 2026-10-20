@@ -46,7 +46,7 @@ final class OfflineTranscriber {
             || b.getShort(32) != 2
             || b.getShort(34) != 16
             || b.getInt(40) != length - 44
-            || length < 3244
+            || length < 76
             || length > 9600044
             || (length - 44) % 2 != 0)
           throw new IOException("Choose a valid audio section of up to five minutes");
