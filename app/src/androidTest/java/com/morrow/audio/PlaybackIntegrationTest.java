@@ -191,7 +191,9 @@ public class PlaybackIntegrationTest {
     instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
     await(
         instrumentation,
-        () -> containsText(activity.getWindow().getDecorView(), "A little escape."),
+        () ->
+            activity.hasWindowFocus()
+                && containsText(activity.getWindow().getDecorView(), "A little escape."),
         10000);
     android.util.Log.i("NarrumoPlaybackTest", "Library resumed; opening player again");
     instrumentation.runOnMainSync(
