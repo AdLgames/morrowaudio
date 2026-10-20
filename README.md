@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.8.0 (build 12) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 1.9.1 (build 14) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,28 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## Illustration review (1.9.1)
+
+In Chapter studio, review the suggested source passage, choose **Keep this passage**, then pick 1–3 pictures. **Select another passage** returns to the transcript; using selected text, a free local suggestion or optional AI choice returns to passage review. The confirmation sheet shows the exact source, picture count and last checked shared allowance before any image request. Each successful page saves automatically before opening its preview. The preview offers **Chapter gallery** and **Generate another · uses allowance**, which returns to passage selection and requires another confirmation. Reopening an identical cached picture is free; choose different text for a new scene. No automatic paid retries are made.
+
+## Android Auto (1.9.0)
+
+Connect your phone to an Android Auto head unit and open **Narrumo**. **Continue listening** shows recent unfinished books. **Audiobooks** opens your local library; choose a book to resume its saved chapter/position or select a chapter. Covers, title/author search, play/pause, previous/next chapter and seek controls use the same playback session as your phone. Large libraries and long chapter lists are grouped into browse folders. Import audio and grant folder access on your phone first; Android Auto does not copy the books to your car.
+
+For this directly downloaded APK, Android Auto may hide Narrumo until **Unknown sources** is enabled in Android Auto’s own developer settings: open Android Auto settings, tap the Version/version-permission section ten times, confirm developer mode, then open the overflow menu → Developer settings → Unknown sources. Reconnect the phone and check Customize launcher if needed. [Google’s testing instructions](https://developer.android.com/training/cars/testing#unknown-sources) describe this option for media apps. This is phone-projected Android Auto; installing directly on an Android Automotive OS car is a separate build.
+
+The app uses Media3 `MediaLibraryService`, its platform media-browser bridge, an automotive media declaration and media-button resumption. Car selections resolve only known local library IDs, preserving existing SAF access and M4B chapter clipping. Private restore/widget/sleep maintenance commands remain available only to the app’s own UID. Browse artwork is small embedded image data, so the car does not need access to private cover files. Real-vehicle and Desktop Head Unit verification still require access to that hardware/runtime; the automated test connects through both Android’s platform MediaBrowser and Media3 MediaBrowser.
+
+## One AI section and visible illustrations (1.9.0)
+
+The bottom **AI** tab contains chapter recaps, transcripts, illustrations, Book words, passage questions and connection settings. Book details, Settings and the listening screen all lead here with the book/chapter context. The recap popup has a direct **Illustrate this chapter** action. Chapter studio keeps **AI tools** and **Back to listening** available in its footer.
+
+The illustration panel sits directly beneath a bounded, scrollable transcript. It highlights a free suggested source passage; select different transcript text and use **Use for illustration** to replace it. **Let AI choose a key moment** optionally sends up to 100,000 already-heard transcript characters in one confirmed text request. The reply must point to exact contiguous source cues, up to 2,500 characters. No image is generated until you review the passage and confirm a picture count.
+
+Choose **1, 2 or 3 pictures** from one chapter. Each is a medium-quality four-panel graphic-novel page, using a different visual framing of the selected passage. Attempts are sequential, individually cached and bounded by the existing **three shared daily image attempts**; failed attempts count and stop the batch. Leaving stops pages not yet started. Saved illustrations remain linked to their chapter even without a saved recap, and unheard source material stays hidden after rewinding.
+
+[View the app user-flow diagram](docs/ai-user-flow.md).
 
 ## Catch up (1.8.0)
 

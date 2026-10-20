@@ -1,11 +1,11 @@
 # Narrumo Android downloads
 
-The current signed release is **1.8.0 / build 12**:
+The current signed release is **1.9.0 / build 13**:
 
-- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.8.0) — 55,471,101 bytes
-- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.8.0) — 54,578,179 bytes
+- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.9.0) — 55,491,637 bytes
+- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.9.0) — 54,598,715 bytes
 
-The home-screen Catch up shortcut opens or creates the last completed chapter’s recap. The Catch up tab holds saved recaps, chapter-linked graphic scenes, book/chapter dropdowns and server-reported allowance. New literary recaps use bounded earlier context; the private test shares 25 chapter attempts per UTC day. Reading saved recaps makes no AI request.
+The home-screen Catch up shortcut opens or creates the last completed chapter’s recap. Android Auto browses local books, resumes saved position and selects chapters using the same playback service. The AI tab groups recaps, chapter transcripts, illustrations, book words, passage questions and connection settings. A visible composer beneath the transcript suggests a free passage, offers optional AI selection and reviews 1–3 pictures before generation. Saved pictures link to chapters even without recaps; requests stop after a failure and never retry automatically. The shared three-image limit remains separate from the chapter allowance. New literary recaps use bounded earlier context; the private test shares 25 chapter attempts per UTC day. Reading saved recaps makes no AI request.
 
 SHA-256 checksum files are retained alongside this document. Both APKs use the
 existing release certificate and install over previous Morrow/Narrumo versions.

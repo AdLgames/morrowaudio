@@ -35,14 +35,16 @@ jobs:
       - name: Test playback, torrent transfers and storage on Android 15
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          # Pin the archived stable binary: 37.2.12 repeatedly lost the emulator during playback.
+          emulator-build: 13610412
           api-level: 35
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          ram-size: 2048M
-          heap-size: 256M
+          ram-size: 4096M
+          heap-size: 512M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
+          emulator-options: -no-window -gpu off -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
           script: bash scripts/check-android-device.sh
       - name: Capture emulator host diagnostics on failure
         if: failure()

@@ -53,6 +53,8 @@ public final class MainActivity extends Activity {
   private long lastRender;
   private String lastCurrent = "";
 
+  private String pendingVoiceQuery;
+
   @Override
   public void onCreate(Bundle state) {
     AccentPalette.apply(this);
@@ -99,6 +101,7 @@ public final class MainActivity extends Activity {
     importCompletedDownload(getIntent());
     openWidgetBook(getIntent());
     openSummaryBook(getIntent());
+    openVoiceSearch(getIntent());
     if (!lib.loadError.isEmpty())
       new AlertDialog.Builder(this)
           .setTitle("Library needs attention")
@@ -115,6 +118,42 @@ public final class MainActivity extends Activity {
     openWidgetBook(intent);
     openTab(intent);
     openSummaryBook(intent);
+    openVoiceSearch(intent);
+  }
+
+  private void openVoiceSearch(Intent intent) {
+    if (!android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH.equals(
+        intent.getAction())) return;
+    String query = intent.getStringExtra(android.app.SearchManager.QUERY);
+    pendingVoiceQuery = query == null ? "" : query.trim();
+    intent.setAction(null);
+    if (player != null) playVoiceSearch();
+  }
+
+  private void playVoiceSearch() {
+    if (!alive || player == null || pendingVoiceQuery == null) return;
+    String query = pendingVoiceQuery;
+    pendingVoiceQuery = null;
+    if (query.length() > 120) {
+      toast("Choose an audiobook from your library");
+      return;
+    }
+    Library.Book book =
+        query.isEmpty()
+            ? lib.find(getSharedPreferences("settings", 0).getString("current", ""))
+            : lib.books.stream()
+                .filter(
+                    b ->
+                        (b.title + " " + b.author)
+                            .toLowerCase(Locale.ROOT)
+                            .contains(query.toLowerCase(Locale.ROOT)))
+                .findFirst()
+                .orElse(null);
+    if (book == null || book.chapters.isEmpty()) {
+      toast("No matching audiobook found on this phone");
+      return;
+    }
+    play(book, book.finished ? 0 : book.index, book.finished ? 0 : book.position, true);
   }
 
   private void openSummaryBook(Intent intent) {
@@ -183,6 +222,7 @@ public final class MainActivity extends Activity {
         () -> {
           try {
             player = controllerFuture.get();
+            handler.post(this::playVoiceSearch);
             player.addListener(
                 new Player.Listener() {
                   @Override
@@ -788,7 +828,7 @@ public final class MainActivity extends Activity {
     gap(body, 12);
     body.addView(
         button(
-            "Chapter summaries · select chapters",
+            "AI companion · recaps, text & illustrations",
             false,
             () ->
                 startActivity(
@@ -1018,11 +1058,11 @@ public final class MainActivity extends Activity {
     LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(0, -2, 1);
     copyParams.leftMargin = d(10);
     copyParams.rightMargin = d(8);
-    TextView title = text("Chapter summaries", 14, INK);
+    TextView title = text("AI companion", 14, INK);
     title.setTypeface(null, Typeface.BOLD);
     copy.addView(title);
     gap(copy, 4);
-    summaryHint = text("Choose chapters · concise catch-ups", 11, MUTED);
+    summaryHint = text("Recaps · transcript · illustrations", 11, MUTED);
     summaryHint.setMaxLines(1);
     summaryHint.setEllipsize(TextUtils.TruncateAt.END);
     copy.addView(summaryHint);
@@ -1061,7 +1101,7 @@ public final class MainActivity extends Activity {
       summaryPreview.setText("");
       summaryPreview.setVisibility(View.GONE);
     }
-    if (summaryHint != null) summaryHint.setText("Choose chapters · concise catch-ups");
+    if (summaryHint != null) summaryHint.setText("Recaps · transcript · illustrations");
     if (summaryAction != null) summaryAction.setText("Choose ›");
   }
 
@@ -1505,7 +1545,7 @@ public final class MainActivity extends Activity {
         new String[][] {
           {"library", "library", "Library"},
           {"bookmarks", "bookmark", "Bookmarks"},
-          {"recaps", "book", "Catch up"},
+          {"recaps", "book", "AI"},
           {"settings", "settings", "Settings"}
         }) {
       LinearLayout item = col();
@@ -1566,9 +1606,9 @@ public final class MainActivity extends Activity {
         "Samsung setup, file access, backups & the latest APK",
         () -> startActivity(new Intent(this, HelpActivity.class)));
     setting(
-        "AI reading lab",
-        "Test recaps and questions on a short passage",
-        () -> startActivity(new Intent(this, AiTrialActivity.class)));
+        "AI companion",
+        "Recaps, transcripts, illustrations, book words & AI settings",
+        () -> openCatchUp(null, false));
     gap(body, 24);
     body.addView(label("APPEARANCE"));
     gap(body, 12);

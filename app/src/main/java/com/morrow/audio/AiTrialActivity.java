@@ -25,7 +25,22 @@ public final class AiTrialActivity extends CalmActivity {
   @Override
   public void onCreate(Bundle state) {
     super.onCreate(state);
-    screen("A little context.", "AI reading lab · an early passage-only test");
+    boolean settingsOnly = getIntent().getBooleanExtra("settingsOnly", false);
+    screen(
+        settingsOnly ? "AI settings." : "A little context.",
+        settingsOnly
+            ? "Your private reading companion connection"
+            : "AI passage lab · optional text experiment");
+    body.addView(
+        button(
+            "All AI tools",
+            false,
+            () ->
+                startActivity(
+                    new Intent(this, ChapterSummariesActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))));
+    gap(body, 16);
+    int passageStart = body.getChildCount();
     note(
         "Paste a short passage, then ask a question or request a recap. This test reads only that"
             + " passage. It does not listen to your audiobook or know how far you’ve heard.");
@@ -69,6 +84,9 @@ public final class AiTrialActivity extends CalmActivity {
     answer.setBackground(bg(SOFT, 20));
     body.addView(answer);
     gap(body, 28);
+    if (settingsOnly)
+      for (int n = passageStart; n < body.getChildCount(); n++)
+        body.getChildAt(n).setVisibility(android.view.View.GONE);
     body.addView(serif("Connect your test server", 25));
     gap(body, 12);
     body.addView(
@@ -116,8 +134,7 @@ public final class AiTrialActivity extends CalmActivity {
                 startActivity(
                     new Intent(
                         Intent.ACTION_VIEW,
-                        Uri.parse(
-                            "https://github.com/AdLgames/morrowaudio/tree/codex/transcripts-recaps-comics/ai-backend")));
+                        Uri.parse("https://github.com/AdLgames/morrowaudio/tree/main/ai-backend")));
               } catch (android.content.ActivityNotFoundException e) {
                 Toast.makeText(
                         this,

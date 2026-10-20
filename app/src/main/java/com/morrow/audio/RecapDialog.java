@@ -62,7 +62,24 @@ final class RecapDialog {
                   new Intent(activity, MainActivity.class)
                       .putExtra("showBook", book.id)
                       .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)));
-      sheet.action("Chapters & graphic scenes", false, choose);
+      sheet.action(
+          "Illustrate this chapter",
+          true,
+          () ->
+              activity.startActivity(
+                  new Intent(activity, TranscriptActivity.class)
+                      .putExtra("book", book.id)
+                      .putExtra("chapter", chapter)
+                      .putExtra("tool", "illustrate")));
+      sheet.action(
+          "Transcript & choose a passage",
+          false,
+          () ->
+              activity.startActivity(
+                  new Intent(activity, TranscriptActivity.class)
+                      .putExtra("book", book.id)
+                      .putExtra("chapter", chapter)));
+      sheet.action("All AI tools & saved scenes", false, choose);
     } catch (Exception e) {
       sheet.text("This saved recap could not be opened.", 14, CalmSheet.MUTED);
       sheet.action("Close", false, () -> {});
