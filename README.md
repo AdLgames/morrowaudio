@@ -10,6 +10,10 @@ Download the latest signed APK from the [Narrumo website](https://morrow-audio.a
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
 
+## Desktop listening room (2.0.0)
+
+Open https://morrow-audio.aptnote8.chatgpt.site/listen/ in desktop Chrome or Edge. Choose a local folder; library references, chapter, position, bookmarks, covers and preferences are retained in browser storage. Return to Continue listening or install it from the browser. Folder permissions may need reconnecting. Audio stays local. A verified 60 MB Whisper model supports offline punctuation and bounded book spelling prompts. Transcription checkpoints completed sections; closing stops processing. Optional text/image AI uses the existing private server connection and shared quotas. No accounts, cross-device sync or desktop torrent engine are included. [Desktop source and build notes](desktop/README.md).
+
 ## Accurate local speech (2.0.0)
 
 Open **AI → Speech quality & book spellings → Download Accurate**. A one-time, SHA-256-verified 60 MB Whisper base.en Q5_1 model downloads from Hugging Face; subsequent recognition is offline. Fast Vosk stays bundled and selected until you explicitly choose Accurate. Whisper produces punctuation and natural segments and accepts up to 100 words of local spelling hints, including approved Book words behind the listening cutoff. Hints guide decoding, not guaranteed recognition or learned pronunciations. Nothing is trained from book audio. Larger models use more memory/CPU; names, noise and speech can still be misheard.

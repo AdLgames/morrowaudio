@@ -26,6 +26,12 @@ jobs:
           node-version: '22'
       - name: Test private AI backend without provider credentials
         run: node --test ai-backend/test/*.test.mjs
+      - name: Check desktop app sources
+        working-directory: desktop
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node --test src/core.test.mjs
+          node build.mjs
       - name: Test, lint, and build
         run: |
           ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest

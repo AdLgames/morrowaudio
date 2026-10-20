@@ -34,6 +34,7 @@ tasks.named('preBuild').configure { dependsOn('bundleWhisperNative') }
 // Test-only public-domain speech and verified model; never added to the release APK.
 def speechTestAssets = layout.buildDirectory.dir('generated/accurateSpeechTestAssets')
 tasks.register('bundleAccurateSpeechTest') {
+    inputs.property('fixtureFormat','canonical-pcm-v1')
     inputs.property('modelSha256','4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f')
     outputs.dir(speechTestAssets)
     doLast {
@@ -46,7 +47,22 @@ tasks.register('bundleAccurateSpeechTest') {
             java.nio.file.Files.move(temp.toPath(),model.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING)
         }
         copy { from model; into speechTestAssets }
-        copy { from new File(whisperCache,'whisper.cpp-1.9.5/samples/jfk.wav'); into speechTestAssets }
+        // Match AudioClipper's canonical 44-byte PCM WAV output. The upstream
+        // public-domain fixture contains an extra LIST metadata chunk.
+        byte[] wav=new File(whisperCache,'whisper.cpp-1.9.5/samples/jfk.wav').bytes
+        def input=java.nio.ByteBuffer.wrap(wav).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        int at=12, offset=-1, length=0
+        while(at+8<=wav.length){
+            String id=new String(wav,at,4,java.nio.charset.StandardCharsets.US_ASCII)
+            int size=input.getInt(at+4)
+            if(size<0||at+8L+size>wav.length)throw new GradleException('Invalid speech fixture')
+            if(id=='data'){offset=at+8;length=size;break}
+            at+=8+size+(size%2)
+        }
+        if(offset<0)throw new GradleException('No PCM in speech fixture')
+        def output=java.nio.ByteBuffer.allocate(44+length).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        output.put('RIFF'.getBytes('US-ASCII')).putInt(36+length).put('WAVEfmt '.getBytes('US-ASCII')).putInt(16).putShort((short)1).putShort((short)1).putInt(16000).putInt(32000).putShort((short)2).putShort((short)16).put('data'.getBytes('US-ASCII')).putInt(length).put(wav,offset,length)
+        speechTestAssets.get().file('jfk.wav').asFile.bytes=output.array()
     }
 }
 android.sourceSets.androidTest.assets.srcDir(speechTestAssets)
