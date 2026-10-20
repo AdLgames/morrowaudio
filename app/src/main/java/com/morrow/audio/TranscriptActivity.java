@@ -47,6 +47,8 @@ public final class TranscriptActivity extends CalmActivity {
   private boolean alive = true, busy, selecting, follow = true;
   private String rendered = "";
   private final List<Line> lines = new ArrayList<>();
+  private IllustrationComposer illustrations;
+  private JSONArray illustrationSelection = new JSONArray();
   private File exportImage;
   private int importChapter, exportChapter;
   private JSONArray displayedEvidence;
@@ -77,6 +79,7 @@ public final class TranscriptActivity extends CalmActivity {
           && new File(image).getParentFile().equals(new File(getFilesDir(), "transcripts")))
         exportImage = new File(image);
     }
+    if (state == null && getIntent().hasExtra("chapter")) follow = false;
     store = new TranscriptStore(this);
     client = new CompanionClient(this);
     wordGuideFile = BookWordGuide.path(store, book);
@@ -85,11 +88,12 @@ public final class TranscriptActivity extends CalmActivity {
     } catch (Exception e) {
       tell("Could not read the book word guide. Your original transcript is kept.");
     }
-    screen("Between the lines.", "Read along · remember · imagine");
+    screen("Chapter studio.", "AI · transcript, illustrations & book words");
     TextView hint =
         text(
             "Completed lines appear as you listen. Transcribe English on this phone for free."
-                + " Long-press text for optional AI recaps or illustrations.",
+                + " Choose a passage below for optional illustrations. Long-press text to change"
+                + " the selection.",
             13,
             MUTED);
     hint.setLineSpacing(d(3), 1);
@@ -128,6 +132,17 @@ public final class TranscriptActivity extends CalmActivity {
     status.setLineSpacing(d(4), 1);
     body.addView(status);
     gap(body, 18);
+    generate = button("Transcribe on this phone · free", false, this::transcribe);
+    generate.setContentDescription("Create offline English transcript");
+    body.addView(generate);
+    gap(body, 12);
+    body.addView(
+        text(
+            "Free offline English transcription · no audio upload. Scroll the text; hold to"
+                + " select.",
+            12,
+            MUTED));
+    gap(body, 12);
     transcript = text("", 17, INK);
     transcript.setTextIsSelectable(true);
     transcript.setContentDescription("Audiobook transcript up to playback position");
@@ -145,7 +160,7 @@ public final class TranscriptActivity extends CalmActivity {
             if (menu.findItem(8101) == null) {
               menu.add(0, 8101, 0, "Recap selection");
               menu.add(0, 8102, 1, "Ask about selection");
-              menu.add(0, 8103, 2, "Illustrate passage");
+              menu.add(0, 8103, 2, "Use for illustration");
             }
             return false;
           }
@@ -160,7 +175,8 @@ public final class TranscriptActivity extends CalmActivity {
               return true;
             }
             if (action == 8102) ask(cues);
-            else confirm(action == 8103 ? "comic" : "recap", cues, "");
+            else if (action == 8103) illustrations.choose(cues);
+            else confirm("recap", cues, "");
             return true;
           }
 
@@ -168,8 +184,44 @@ public final class TranscriptActivity extends CalmActivity {
             selecting = false;
           }
         });
-    body.addView(transcript);
+    ScrollView textWindow = new ScrollView(this);
+    textWindow.setNestedScrollingEnabled(true);
+    textWindow.addView(transcript);
+    body.addView(textWindow, new LinearLayout.LayoutParams(-1, d(220)));
     gap(body, 18);
+    illustrations =
+        new IllustrationComposer(
+            this,
+            book,
+            () -> chapter,
+            this::chapterCues,
+            this::selectedCues,
+            () -> {
+              Cutoff c = cutoff();
+              try {
+                return new JSONObject().put("chapter", c.chapter).put("positionMs", c.position);
+              } catch (JSONException e) {
+                throw new IllegalStateException(e);
+              }
+            },
+            this::stillHeard,
+            value -> {
+              illustrationSelection = value;
+              rendered = null;
+            });
+    body.addView(illustrations.view);
+    gap(body, 18);
+    body.addView(
+        button(
+            "Ask about selected transcript text",
+            false,
+            () -> {
+              JSONArray chosen = selectedCues();
+              if (chosen.length() == 0)
+                tell("Long-press the transcript and select a passage, then tap Ask.");
+              else ask(chosen);
+            }));
+    gap(body, 12);
     body.addView(
         button(
             "Catch me up · concise recap",
@@ -182,10 +234,7 @@ public final class TranscriptActivity extends CalmActivity {
               }
             }));
     gap(body, 12);
-    generate = button("Transcribe on this phone · free", false, this::transcribe);
-    generate.setContentDescription("Create offline English transcript");
-    body.addView(generate);
-    gap(body, 12);
+
     body.addView(
         text(
             "Offline English · no audio upload or API charges. First use prepares about 71 MB of"
@@ -271,6 +320,31 @@ public final class TranscriptActivity extends CalmActivity {
             "AI connection settings",
             false,
             () -> startActivity(new Intent(this, AiTrialActivity.class))));
+    LinearLayout studioNav = row();
+    pad(studioNav, 16, 6);
+    studioNav.addView(
+        button(
+            "AI tools",
+            false,
+            () ->
+                startActivity(
+                    new Intent(this, ChapterSummariesActivity.class)
+                        .putExtra("book", book.id)
+                        .putExtra("chapter", chapter)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))),
+        new LinearLayout.LayoutParams(0, -2, 1));
+    studioNav.addView(
+        button(
+            "Back to listening",
+            false,
+            () ->
+                startActivity(
+                    new Intent(this, MainActivity.class)
+                        .putExtra("showBook", book.id)
+                        .addFlags(
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP))),
+        new LinearLayout.LayoutParams(0, -2, 1));
+    pageRoot.addView(studioNav);
     loadChapter();
     future =
         new MediaController.Builder(
@@ -288,6 +362,14 @@ public final class TranscriptActivity extends CalmActivity {
         },
         ContextCompat.getMainExecutor(this));
     handler.post(tick);
+    handler.post(
+        () -> {
+          String tool = getIntent().getStringExtra("tool");
+          if ("illustrate".equals(tool))
+            ((ScrollView) body.getParent()).smoothScrollTo(0, illustrations.view.getTop());
+          else if ("words".equals(tool))
+            ((ScrollView) body.getParent()).smoothScrollTo(0, vocabularyButton.getTop());
+        });
   }
 
   private boolean playingThisBook() {
@@ -325,12 +407,13 @@ public final class TranscriptActivity extends CalmActivity {
       data = new TranscriptStore.Data(new ArrayList<>(), new ArrayList<>());
       tell("Could not read the saved transcript. Import it again or transcribe a section.");
     }
+    illustrationSelection = new JSONArray();
     rendered = null;
     render();
   }
 
   private void chooseChapter() {
-    if (busy) {
+    if (busy || (illustrations != null && illustrations.busy())) {
       tell("Wait for the current request to finish.");
       return;
     }
@@ -432,13 +515,48 @@ public final class TranscriptActivity extends CalmActivity {
             last.from,
             last.to,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        try {
+          for (int n = 0; n < illustrationSelection.length(); n++) {
+            JSONObject chosen = illustrationSelection.getJSONObject(n);
+            if (chosen.getInt("chapter") != chapter) continue;
+            for (Line line : lines)
+              if (line.cue.startMs() == chosen.getLong("startMs")
+                  && line.cue.endMs() == chosen.getLong("endMs"))
+                styled.setSpan(
+                    new BackgroundColorSpan(AccentPalette.soft(this)),
+                    line.from,
+                    line.to,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+          }
+        } catch (JSONException ignored) {
+        }
         transcript.setText(styled);
       }
+    }
+    if (illustrations != null) {
+      illustrations.refresh();
+      illustrations.transcriptChanged();
     }
     if (displayedEvidence != null && !stillHeard(displayedEvidence)) {
       displayedEvidence = null;
       result.setText("The previous answer is hidden because you moved before its source passage.");
     }
+  }
+
+  boolean otherWorkRunning() {
+    return busy;
+  }
+
+  private JSONArray chapterCues() {
+    JSONArray cues = new JSONArray();
+    if (data == null) return cues;
+    try {
+      for (TranscriptTimeline.Cue line : TranscriptTimeline.heard(data.cues(), chapterCutoff()))
+        cues.put(cue(chapter, line, line.text()));
+    } catch (JSONException e) {
+      throw new IllegalStateException(e);
+    }
+    return cues;
   }
 
   private JSONObject cue(int index, TranscriptTimeline.Cue c, String text) throws JSONException {
@@ -536,7 +654,7 @@ public final class TranscriptActivity extends CalmActivity {
   }
 
   private void confirm(String action, JSONArray cues, String question) {
-    if (busy) {
+    if (busy || (illustrations != null && illustrations.busy())) {
       tell("A request is already running.");
       return;
     }
@@ -681,7 +799,7 @@ public final class TranscriptActivity extends CalmActivity {
   }
 
   private void transcribe() {
-    if (busy) {
+    if (busy || (illustrations != null && illustrations.busy())) {
       tell("A request is already running.");
       return;
     }
@@ -1133,8 +1251,7 @@ public final class TranscriptActivity extends CalmActivity {
   }
 
   private void tell(String message) {
-    if (alive)
-      new AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show();
+    if (alive) CalmSheet.message(this, "Chapter studio", message);
   }
 
   @Override
@@ -1150,6 +1267,7 @@ public final class TranscriptActivity extends CalmActivity {
   @Override
   protected void onDestroy() {
     alive = false;
+    if (illustrations != null) illustrations.close();
     handler.removeCallbacksAndMessages(null);
     cancelRequested = true;
     if (client != null) client.cancel();

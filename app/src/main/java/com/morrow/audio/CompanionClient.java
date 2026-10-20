@@ -28,7 +28,7 @@ final class CompanionClient {
         || token.contains("\n")
         || token.contains("\r"))
       throw new IOException(
-          "Connect your private server in Settings → AI reading lab first. Use a Narrumo access"
+          "Connect your private server in AI → AI settings first. Use a Narrumo access"
               + " token, never an OpenAI key.");
     String path = endpoint.getPath();
     if (!path.endsWith("/ai")) throw new IOException("The saved server address must end in /ai");

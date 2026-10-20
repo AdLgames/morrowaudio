@@ -64,7 +64,28 @@ public final class ChapterSummariesActivity extends CalmActivity {
       scenes = state.getBoolean("scenes");
       pendingOpen = state.getString("pendingOpen", "");
     } else chapter = getIntent().getIntExtra("chapter", chapter);
-    screen("Catch up.", "A little reminder, before you return.");
+    if (state == null) scenes = getIntent().getBooleanExtra("scenes", false);
+    screen("Your AI companion.", "Recaps, transcripts, illustrations and book words — together.");
+    body.addView(
+        button(
+            "Back to listening",
+            false,
+            () -> {
+              Intent listening =
+                  new Intent(this, MainActivity.class)
+                      .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+              if (book != null) listening.putExtra("showBook", book.id);
+              startActivity(listening);
+            }));
+    gap(body, 12);
+    body.addView(
+        button(
+            "AI settings & connection",
+            false,
+            () ->
+                startActivity(
+                    new Intent(this, AiTrialActivity.class).putExtra("settingsOnly", true))));
+    gap(body, 18);
     quotaCard();
     gap(body, 20);
     if (book == null) {
@@ -72,7 +93,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
       navigation();
       return;
     }
-    TextView pickLabel = text("YOUR NEXT RECAP", 11, SAGE);
+    TextView pickLabel = text("BOOK & CHAPTER", 11, SAGE);
     body.addView(pickLabel);
     gap(body, 10);
     bookPicker = spinner("Choose a book");
@@ -113,6 +134,13 @@ public final class ChapterSummariesActivity extends CalmActivity {
     start = button("Summarise this chapter", true, () -> summarise(List.of(chapter)));
     start.setContentDescription("Summarise chosen chapter");
     body.addView(start);
+    gap(body, 10);
+    body.addView(
+        button("Transcript & illustrations", false, () -> readAlong(chapter, "illustrate")));
+    gap(body, 10);
+    body.addView(button("Book words & pronunciation", false, () -> readAlong(chapter, "words")));
+    gap(body, 10);
+    body.addView(button("Ask about a passage", false, () -> readAlong(chapter, "ask")));
     gap(body, 10);
     body.addView(button("Choose several chapters", false, this::chooseSeveral));
     gap(body, 16);
@@ -167,13 +195,19 @@ public final class ChapterSummariesActivity extends CalmActivity {
             12,
             MUTED));
     gap(body, 18);
-    body.addView(button("Read-along text & book words", false, () -> readAlong(chapter)));
+    body.addView(
+        button(
+            "Try the AI passage lab",
+            false,
+            () -> startActivity(new Intent(this, AiTrialActivity.class))));
     gap(body, 10);
     body.addView(
         button(
-            "AI connection settings",
+            "AI settings & connection",
             false,
-            () -> startActivity(new Intent(this, AiTrialActivity.class))));
+            () ->
+                startActivity(
+                    new Intent(this, AiTrialActivity.class).putExtra("settingsOnly", true))));
     gap(body, 10);
     if (Build.VERSION.SDK_INT >= 33
         && !getSystemService(NotificationManager.class).areNotificationsEnabled()) {
@@ -356,9 +390,9 @@ public final class ChapterSummariesActivity extends CalmActivity {
             List<Saved> saved = new ArrayList<>();
             StringBuilder signature = new StringBuilder(target.id).append(showScenes);
             for (int n = target.chapters.size() - 1; n >= 0; n--) {
-              if (!available(target, n)) continue;
+              if (!showScenes && !available(target, n)) continue;
               JSONObject value = store.summary(target, target.chapters.get(n));
-              if (value == null) continue;
+              if (value == null && !showScenes) continue;
               List<ChapterScenes.Scene> pages =
                   showScenes && n == chosen ? ChapterScenes.list(this, target, n) : List.of();
               saved.add(new Saved(n, value, pages));
@@ -447,7 +481,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
     savedCards.removeAllViews();
     int count = 0;
     for (Saved s : saved) {
-      if (!available(target, s.chapter())) continue;
+      if (!showScenes && !available(target, s.chapter())) continue;
       if (showScenes) {
         if (s.chapter() != chapter) continue;
         int total = s.scenes().size();
@@ -471,8 +505,12 @@ public final class ChapterSummariesActivity extends CalmActivity {
           gap(card, 10);
           card.addView(text(scene.label(), 13, INK));
           gap(card, 10);
-          card.addView(
-              button("Read this chapter’s recap", false, () -> openRecap(target, s.chapter())));
+          if (s.recap() != null)
+            card.addView(
+                button("Read this chapter’s recap", false, () -> openRecap(target, s.chapter())));
+          else
+            card.addView(
+                button("Transcript & chapter tools", false, () -> illustrate(target, s.chapter())));
           savedCards.addView(card);
           gap(savedCards, 14);
         }
@@ -529,9 +567,9 @@ public final class ChapterSummariesActivity extends CalmActivity {
           text(
               showScenes
                   ? "A moment, illustrated.\n\n"
-                      + "Choose a saved chapter recap, then Illustrate a passage. Its"
-                      + " graphic-novel pages will be kept here beside the chapter. Older pages"
-                      + " are also available in Read along."
+                      + "Choose Transcript & illustrations above, review the suggested passage,"
+                      + " and create 1–3 pictures. Your pages appear here linked to this chapter;"
+                      + " a recap is optional."
                   : "Your chapter memories will live here.\n\n"
                       + "Choose a completed chapter above to make your first recap.",
               15,
@@ -539,11 +577,13 @@ public final class ChapterSummariesActivity extends CalmActivity {
       none.setLineSpacing(d(5), 1);
       pad(none, 12, 20);
       savedCards.addView(none);
+      if (showScenes)
+        savedCards.addView(
+            button("Create chapter illustrations", true, () -> readAlong(chapter, "illustrate")));
     }
   }
 
   private void openScene(Library.Book target, int index, ChapterScenes.Scene scene) {
-    if (!available(target, index)) return;
     CalmSheet image =
         new CalmSheet(this, "Chapter " + (index + 1), "A moment, illustrated", target.title);
     ImageView full = new ImageView(this);
@@ -554,10 +594,10 @@ public final class ChapterSummariesActivity extends CalmActivity {
     image.space(14);
     image.text("An AI interpretation of this chapter’s selected passage.", 12, MUTED);
     image.space(18);
-    image.action("Read chapter recap", false, () -> openRecap(target, index));
+    image.action("Chapter transcript & tools", false, () -> illustrate(target, index));
     image.action("Close", false, () -> {});
     sheet = image.show();
-    RecapDialog.protect(this, sheet, target, index);
+    ChapterScenes.protect(this, sheet, target, index, scene);
   }
 
   private void openRecap(Library.Book target, int index) {
@@ -593,31 +633,20 @@ public final class ChapterSummariesActivity extends CalmActivity {
   }
 
   private void readAlong(int index) {
+    readAlong(index, "transcript");
+  }
+
+  private void readAlong(int index, String tool) {
     startActivity(
         new Intent(this, TranscriptActivity.class)
             .putExtra("book", book.id)
-            .putExtra("chapter", index));
+            .putExtra("chapter", index)
+            .putExtra("tool", tool));
   }
 
   private void illustrate(Library.Book target, int index) {
-    if (!available(target, index)) return;
-    CalmSheet s =
-        new CalmSheet(
-            this,
-            "Chapter " + (index + 1),
-            "A moment, illustrated",
-            "Open this chapter’s text, select a passage, then choose Illustrate passage. New pages"
-                + " use the separate three-image daily allowance and incur image-generation"
-                + " charges. Saved pages link back to this chapter here.");
-    s.action(
-        "Choose a passage",
-        true,
-        () -> {
-          book = target;
-          readAlong(index);
-        });
-    s.action("Not now", false, () -> {});
-    sheet = s.show();
+    book = target;
+    readAlong(index, "illustrate");
   }
 
   private void consent(Runnable next) {
@@ -678,7 +707,11 @@ public final class ChapterSummariesActivity extends CalmActivity {
               "Add your private server in AI settings. Your audio stays on your phone; new chapter"
                   + " recaps use an AI request.");
       s.action(
-          "Open AI settings", true, () -> startActivity(new Intent(this, AiTrialActivity.class)));
+          "Open AI settings",
+          true,
+          () ->
+              startActivity(
+                  new Intent(this, AiTrialActivity.class).putExtra("settingsOnly", true)));
       s.action("Not now", false, () -> {});
       sheet = s.show();
       return;
@@ -836,7 +869,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
         new String[][] {
           {"library", "library", "Library"},
           {"bookmarks", "bookmark", "Bookmarks"},
-          {"recaps", "book", "Catch up"},
+          {"recaps", "book", "AI"},
           {"settings", "settings", "Settings"}
         }) {
       LinearLayout item = col();

@@ -7,13 +7,52 @@ import java.util.*;
 import org.json.*;
 
 final class ChapterScenes {
-  record Scene(File image, String label) {}
+  record Scene(File image, String label, JSONArray cues, String sourceKey) {}
+
+  static boolean reached(Library.Book book, int chapter, long end) {
+    return chapter >= 0
+        && chapter < book.chapters.size()
+        && (book.finished || chapter < book.index || chapter == book.index && end <= book.position);
+  }
+
+  static void protect(
+      android.app.Activity activity,
+      android.app.Dialog dialog,
+      Library.Book book,
+      int chapter,
+      Scene scene) {
+    android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    Runnable guard =
+        new Runnable() {
+          public void run() {
+            if (!dialog.isShowing()) return;
+            Library.Book current = Library.get(activity).find(book.id);
+            boolean valid =
+                current != null
+                    && chapter < current.chapters.size()
+                    && scene
+                        .sourceKey()
+                        .equals(ChapterSummaryStore.key(current, current.chapters.get(chapter)));
+            try {
+              for (int n = 0; n < scene.cues().length(); n++) {
+                JSONObject c = scene.cues().getJSONObject(n);
+                valid &=
+                    current != null && reached(current, c.getInt("chapter"), c.getLong("endMs"));
+              }
+            } catch (Exception e) {
+              valid = false;
+            }
+            if (!valid || activity.isFinishing() || activity.isDestroyed()) dialog.dismiss();
+            else handler.postDelayed(this, 500);
+          }
+        };
+    dialog.setOnDismissListener(d -> handler.removeCallbacksAndMessages(null));
+    handler.postDelayed(guard, 500);
+  }
 
   static List<Scene> list(Context context, Library.Book book, int chapter) throws Exception {
     List<Scene> scenes = new ArrayList<>();
-    if (!ChapterSummaryStore.heard(book, chapter)
-        || new ChapterSummaryStore(context).summary(book, book.chapters.get(chapter)) == null)
-      return scenes;
+    if (chapter < 0 || chapter >= book.chapters.size()) return scenes;
     File directory = new File(context.getFilesDir(), "transcripts");
     File[] files = directory.listFiles((d, n) -> n.endsWith(".page.json"));
     if (files == null) return scenes;
@@ -33,7 +72,7 @@ final class ChapterScenes {
           int index = cue.getInt("chapter");
           if (index < 0
               || index >= book.chapters.size()
-              || !ChapterSummaryStore.heard(book, index)
+              || !reached(book, index, cue.getLong("endMs"))
               || cue.getLong("endMs") > book.chapters.get(index).duration
               || cue.getLong("startMs") < 0
               || cue.getLong("endMs") <= cue.getLong("startMs")) heard = false;
@@ -65,7 +104,7 @@ final class ChapterScenes {
         if (!linked || !name.matches("[a-f0-9]{64}\\.jpg")) continue;
         File image = new File(directory, name);
         if (image.isFile() && image.length() <= 4200000)
-          scenes.add(new Scene(image, meta.optString("label", "A moment, illustrated")));
+          scenes.add(new Scene(image, meta.optString("label", "A moment, illustrated"), cues, key));
       } catch (Exception ignored) {
       }
     scenes.sort(Comparator.comparingLong((Scene s) -> s.image().lastModified()).reversed());

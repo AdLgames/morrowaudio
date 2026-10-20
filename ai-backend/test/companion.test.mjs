@@ -20,3 +20,36 @@ test('audio reservations share one atomic 30-minute daily allowance',async()=>{c
 test('comic has fixed medium square options, caches by source and charges once for concurrent duplicates',async()=>{const env=config();let calls=0,payload,release;const gate=new Promise(r=>release=r);const invoke=async(url,opts)=>{calls++;payload=JSON.parse(opts.body);await gate;return new Response(JSON.stringify({data:[{b64_json:'/9j/YWJjZA=='}]}));};const input={...body('comic'),quality:'high',n:10};const first=handleRequest(request(input),env,invoke);while(!calls)await new Promise(r=>setTimeout(r,1));assert.equal((await handleRequest(request(input),env,invoke)).status,409);release();assert.equal((await first).status,200);const cached=await handleRequest(request(input),env,invoke);assert.equal(cached.status,200);assert.equal((await cached.json()).cached,true);assert.equal(calls,1);assert.equal(payload.quality,'medium');assert.equal(payload.size,'1024x1024');assert.equal(payload.n,1);assert.equal(payload.model,'gpt-image-2.5-flare');assert.ok(!payload.prompt.includes('Future secret'));});
 test('three distinct image attempts globally; failures count and cannot cause paid retries',async()=>{const env=config();let calls=0;const invoke=async()=>{calls++;return new Response('private provider details',{status:403});};for(let n=0;n<4;n++){const b=body('comic');b.cues=[cue(0,0,1000,'Different passage '+n)];const r=await handleRequest(request(b),env,invoke);assert.equal(r.status,n<3?502:429);assert.ok(!(await r.text()).includes('private provider details'));}assert.equal(calls,3);});
 test('large or unsupported selection and quota outages never call a paid provider',async()=>{let calls=0;for(const input of [{...body('comic'),cues:[cue(0,0,1000,'x'.repeat(2501))]},{...body(),action:'other'}])assert.equal((await handleRequest(request(input),config(),async()=>{calls++;})).status,400);const env=config();env.TRIAL_BUDGET.get=()=>({fetch:async()=>{throw new Error('unavailable')}});await handleRequest(request(body()),env,async()=>{calls++;});assert.equal(calls,0);});
+
+test('AI scene selection uses heard chapter cues, bounded indices and the separate text allowance',async()=>{
+ const env=config();let payload;
+ const reply=choice=>new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(choice)}]}]}));
+ const input={...body('scene'),title:'Do not upload library metadata'};
+ const response=await handleRequest(request(input),env,async(url,opts)=>{payload=JSON.parse(opts.body);return reply({startCue:1,endCue:1});});
+ assert.equal(response.status,200);assert.deepEqual((await response.json()).cues,[cue(1,0,4000,'She waits at the inn.')]);
+ assert.equal(payload.store,false);assert.equal(payload.max_output_tokens,600);assert.ok(!payload.input.includes('Future'));assert.ok(!payload.input.includes('Do not upload'));
+ assert.equal(env.saved.data.get('usage').count,1);assert.equal(env.saved.data.get('chapter-usage'),undefined);assert.equal(env.saved.data.get('image-usage'),undefined);
+ const invalid=await handleRequest(request(input),env,async()=>reply({startCue:0,endCue:999}));assert.equal(invalid.status,502);
+ assert.equal(env.saved.data.get('usage').count,2);
+});
+
+test('scene choices reject oversized ranges, malformed indices and unavailable quota without images',async()=>{
+ const input={...body('scene'),cues:[cue(0,0,1000,'x'.repeat(2000)),cue(0,1000,2000,'y'.repeat(2000))]};
+ for(const choice of [{startCue:0,endCue:1},{startCue:-1,endCue:0},{startCue:1,endCue:0},{startCue:0.5,endCue:1}]){
+  const result=await handleRequest(request(input),config(),async()=>new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(choice)}]}]})));assert.equal(result.status,502);
+ }
+ const env=config();env.TRIAL_BUDGET.get=()=>({fetch:async()=>new Response('',{status:429})});let calls=0;
+ assert.equal((await handleRequest(request(input),env,async()=>{calls++;})).status,429);assert.equal(calls,0);
+});
+
+test('three requested visual variations stay individually cached and obey one shared image cap',async()=>{
+ const env=config();let calls=0;const prompts=[];
+ const provider=async(url,opts)=>{calls++;const p=JSON.parse(opts.body);assert.equal(p.n,1);assert.equal(p.quality,'medium');prompts.push(p.prompt);return new Response(JSON.stringify({data:[{b64_json:'/9j/YWJjZA=='}]}));};
+ for(let variation=1;variation<=3;variation++)assert.equal((await handleRequest(request({...body('comic'),variation}),env,provider)).status,200);
+ assert.equal(calls,3);assert.equal(new Set(prompts).size,3);
+ for(let variation=1;variation<=3;variation++)assert.equal((await handleRequest(request({...body('comic'),variation}),env,provider)).status,200);
+ assert.equal(calls,3);assert.equal(env.saved.data.get('image-usage').count,3);
+ const other={...body('comic'),cues:[cue(0,0,1000,'A different scene.')]};assert.equal((await handleRequest(request(other),env,provider)).status,429);
+ for(const variation of [0,4,1.1,'3'])assert.equal((await handleRequest(request({...body('comic'),variation}),env,provider)).status,400);
+ assert.equal(calls,3);
+});

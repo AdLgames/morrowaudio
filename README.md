@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.8.0 (build 12) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 1.9.0 (build 13) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,16 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## One AI section and visible illustrations (1.9.0)
+
+The bottom **AI** tab contains chapter recaps, transcripts, illustrations, Book words, passage questions and connection settings. Book details, Settings and the listening screen all lead here with the book/chapter context. The recap popup has a direct **Illustrate this chapter** action. Chapter studio keeps **AI tools** and **Back to listening** available in its footer.
+
+The illustration panel sits directly beneath a bounded, scrollable transcript. It highlights a free suggested source passage; select different transcript text and use **Use for illustration** to replace it. **Let AI choose a key moment** optionally sends up to 100,000 already-heard transcript characters in one confirmed text request. The reply must point to exact contiguous source cues, up to 2,500 characters. No image is generated until you review the passage and confirm a picture count.
+
+Choose **1, 2 or 3 pictures** from one chapter. Each is a medium-quality four-panel graphic-novel page, using a different visual framing of the selected passage. Attempts are sequential, individually cached and bounded by the existing **three shared daily image attempts**; failed attempts count and stop the batch. Leaving stops pages not yet started. Saved illustrations remain linked to their chapter even without a saved recap, and unheard source material stays hidden after rewinding.
+
+[View the app user-flow diagram](docs/ai-user-flow.md).
 
 ## Catch up (1.8.0)
 

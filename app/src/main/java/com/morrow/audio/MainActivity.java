@@ -788,7 +788,7 @@ public final class MainActivity extends Activity {
     gap(body, 12);
     body.addView(
         button(
-            "Chapter summaries · select chapters",
+            "AI companion · recaps, text & illustrations",
             false,
             () ->
                 startActivity(
@@ -1018,11 +1018,11 @@ public final class MainActivity extends Activity {
     LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(0, -2, 1);
     copyParams.leftMargin = d(10);
     copyParams.rightMargin = d(8);
-    TextView title = text("Chapter summaries", 14, INK);
+    TextView title = text("AI companion", 14, INK);
     title.setTypeface(null, Typeface.BOLD);
     copy.addView(title);
     gap(copy, 4);
-    summaryHint = text("Choose chapters · concise catch-ups", 11, MUTED);
+    summaryHint = text("Recaps · transcript · illustrations", 11, MUTED);
     summaryHint.setMaxLines(1);
     summaryHint.setEllipsize(TextUtils.TruncateAt.END);
     copy.addView(summaryHint);
@@ -1061,7 +1061,7 @@ public final class MainActivity extends Activity {
       summaryPreview.setText("");
       summaryPreview.setVisibility(View.GONE);
     }
-    if (summaryHint != null) summaryHint.setText("Choose chapters · concise catch-ups");
+    if (summaryHint != null) summaryHint.setText("Recaps · transcript · illustrations");
     if (summaryAction != null) summaryAction.setText("Choose ›");
   }
 
@@ -1505,7 +1505,7 @@ public final class MainActivity extends Activity {
         new String[][] {
           {"library", "library", "Library"},
           {"bookmarks", "bookmark", "Bookmarks"},
-          {"recaps", "book", "Catch up"},
+          {"recaps", "book", "AI"},
           {"settings", "settings", "Settings"}
         }) {
       LinearLayout item = col();
@@ -1566,9 +1566,9 @@ public final class MainActivity extends Activity {
         "Samsung setup, file access, backups & the latest APK",
         () -> startActivity(new Intent(this, HelpActivity.class)));
     setting(
-        "AI reading lab",
-        "Test recaps and questions on a short passage",
-        () -> startActivity(new Intent(this, AiTrialActivity.class)));
+        "AI companion",
+        "Recaps, transcripts, illustrations, book words & AI settings",
+        () -> openCatchUp(null, false));
     gap(body, 24);
     body.addView(label("APPEARANCE"));
     gap(body, 12);
