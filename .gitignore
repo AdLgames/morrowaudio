@@ -6,3 +6,7 @@ artifacts/
 *.jks
 *.keystore
 *.idsig
+
+# Large versioned release APKs are published on the distribution site.
+/dist/Narrumo-[0-9]*.apk
+/dist/Narrumo-arm32-[0-9]*.apk

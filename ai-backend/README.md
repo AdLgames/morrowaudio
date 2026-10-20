@@ -1,5 +1,7 @@
 # Narrumo AI reading lab — private test backend
 
+Narrumo 1.5.0 performs English transcription entirely on the phone with a bundled Vosk model. It does not call `/transcribe`, need an AI connection for transcripts, or use the server audio allowance. Only explicitly confirmed recaps, questions and comics use this backend. Keep the existing Worker and connection; no deployment change is needed for the offline update. The audio endpoint below remains for older 1.4 clients.
+
 Narrumo is the new name for Morrow Audio. Keep the existing `morrow-ai-trial` Worker, `MORROW_TRIAL_TOKEN` secret and saved server URL when upgrading; these identifiers stay unchanged for compatibility. No new connection or API key is needed for the rename.
 
 This is a real OpenAI Responses API integration, not a ChatGPT website wrapper. Android 1.4.0 adds a timestamped read-along screen, concise progress recaps, and graphic-novel pages from selected passages. The older passage-only reading lab remains available. No request runs automatically, and no provider key belongs in the APK.
