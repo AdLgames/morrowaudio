@@ -114,15 +114,18 @@ public class ChapterSummariesIntegrationTest {
         }
       }
       RecapNotifications.ready(ctx, book, 0, summary());
-      var notices =
-          ctx.getSystemService(android.app.NotificationManager.class).getActiveNotifications();
-      assertTrue(
-          Arrays.stream(notices)
-              .anyMatch(
-                  n ->
-                      n.getId() == 76
-                          && n.getNotification().visibility
-                              == android.app.Notification.VISIBILITY_PRIVATE));
+      await(
+          i,
+          () ->
+              Arrays.stream(
+                      ctx.getSystemService(android.app.NotificationManager.class)
+                          .getActiveNotifications())
+                  .anyMatch(
+                      n ->
+                          n.getId() == 76
+                              && n.getNotification().visibility
+                                  == android.app.Notification.VISIBILITY_PRIVATE),
+          10000);
       // Pages link to an exact source identity; another chapter cannot borrow that scene.
       File image = transcripts.cached("chapter-scene-fixture", ".jpg");
       android.graphics.Bitmap bitmap =
