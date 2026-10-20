@@ -4,6 +4,7 @@ import android.app.*;
 import android.content.*;
 import android.graphics.*;
 import android.os.*;
+import android.view.View;
 import android.widget.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -26,11 +27,12 @@ final class IllustrationComposer {
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   final LinearLayout view;
-  private final TextView preview, allowance, state, generate, pick, auto, use;
+  private final TextView preview, allowance, state, generate, pick, auto, use, keep, reselect;
+  private final LinearLayout pictures;
   private final Spinner count;
   private JSONArray passage = new JSONArray();
   private String sourceIdentity = "";
-  private boolean alive = true, busy;
+  private boolean alive = true, busy, accepted;
   private Dialog dialog;
 
   IllustrationComposer(
@@ -60,7 +62,9 @@ final class IllustrationComposer {
     activity.gap(view, 8);
     TextView intro =
         activity.text(
-            "1. Review a passage  ·  2. Choose pictures  ·  3. Create", 12, CalmActivity.MUTED);
+            "1. Choose a passage  ·  2. Review the cost  ·  3. Enjoy your pictures",
+            12,
+            CalmActivity.MUTED);
     view.addView(intro);
     activity.gap(view, 14);
     preview = activity.text("", 14, CalmActivity.INK);
@@ -69,6 +73,13 @@ final class IllustrationComposer {
     preview.setLineSpacing(activity.d(4), 1);
     view.addView(preview);
     activity.gap(view, 12);
+    keep = activity.button("Keep this passage", true, this::keepPassage);
+    keep.setContentDescription("Keep illustration passage");
+    view.addView(keep);
+    activity.gap(view, 8);
+    reselect = activity.button("Select another passage", false, this::selectAnother);
+    view.addView(reselect);
+    activity.gap(view, 8);
     use = activity.button("Use my selected transcript text", false, () -> choose(selected.get()));
     use.setContentDescription("Use transcript selection for illustration");
     view.addView(use);
@@ -86,8 +97,12 @@ final class IllustrationComposer {
             12,
             CalmActivity.MUTED));
     activity.gap(view, 16);
-    view.addView(activity.text("HOW MANY PICTURES?", 11, activity.SAGE));
-    activity.gap(view, 8);
+    pictures = activity.col();
+    pictures.setContentDescription("Illustration picture options");
+    pictures.setVisibility(View.GONE);
+    view.addView(pictures);
+    pictures.addView(activity.text("HOW MANY PICTURES?", 11, activity.SAGE));
+    activity.gap(pictures, 8);
     count = new Spinner(activity);
     count.setContentDescription("Number of illustrations");
     ArrayAdapter<String> adapter =
@@ -96,13 +111,13 @@ final class IllustrationComposer {
             android.R.layout.simple_spinner_dropdown_item,
             new String[] {"1 picture", "2 pictures", "3 pictures"});
     count.setAdapter(adapter);
-    view.addView(count, new LinearLayout.LayoutParams(-1, activity.d(52)));
+    pictures.addView(count, new LinearLayout.LayoutParams(-1, activity.d(52)));
     allowance = activity.text("", 12, activity.SAGE);
-    view.addView(allowance);
-    activity.gap(view, 12);
+    pictures.addView(allowance);
+    activity.gap(pictures, 12);
     generate = activity.button("Review & create illustrations", true, this::review);
     generate.setContentDescription("Review chapter illustrations");
-    view.addView(generate);
+    pictures.addView(generate);
     activity.gap(view, 10);
     state =
         activity.text(
@@ -111,16 +126,45 @@ final class IllustrationComposer {
             CalmActivity.MUTED);
     view.addView(state);
     activity.gap(view, 12);
-    view.addView(
-        activity.button(
-            "View this chapter’s saved pictures",
-            false,
+    view.addView(activity.button("View this chapter’s saved pictures", false, this::openGallery));
+  }
+
+  private void openGallery() {
+    activity.startActivity(
+        new Intent(activity, ChapterSummariesActivity.class)
+            .putExtra("book", book.id)
+            .putExtra("chapter", chapter.getAsInt())
+            .putExtra("scenes", true));
+  }
+
+  private void keepPassage() {
+    if (busy || !valid(passage)) return;
+    accepted = true;
+    refresh();
+    ((ScrollView) activity.body.getParent())
+        .post(
             () ->
-                activity.startActivity(
-                    new Intent(activity, ChapterSummariesActivity.class)
-                        .putExtra("book", book.id)
-                        .putExtra("chapter", chapter.getAsInt())
-                        .putExtra("scenes", true))));
+                ((ScrollView) activity.body.getParent())
+                    .smoothScrollTo(0, view.getTop() + pictures.getTop()));
+  }
+
+  private void selectAnother() {
+    if (busy) return;
+    accepted = false;
+    refresh();
+    state.setText(
+        "Select text above, then tap Use my selected transcript text. No request is sent.");
+    activity.selectIllustrationPassage();
+  }
+
+  private void anotherPicture() {
+    accepted = false;
+    count.setSelection(0);
+    state.setText(
+        "Choose a new passage, or let AI choose one, then keep it to review the cost. "
+            + "New pictures use the shared allowance; the same saved picture reopens free.");
+    refresh();
+    reveal();
   }
 
   boolean busy() {
@@ -145,10 +189,12 @@ final class IllustrationComposer {
     if (!current.equals(sourceIdentity)) {
       sourceIdentity = current;
       passage = new JSONArray();
+      accepted = false;
       if (!busy) suggest(false);
     }
     if (passage.length() > 0 && !valid(passage)) {
       passage = new JSONArray();
+      accepted = false;
       highlight.accept(passage);
     }
     preview.setText(
@@ -161,7 +207,11 @@ final class IllustrationComposer {
             ? "Up to 3 shared image attempts per UTC day. Check the live allowance in AI."
             : usage.optInt("imagesRemaining", 3)
                 + " of 3 image attempts left · shared server · resets midnight UTC");
-    generate.setEnabled(!busy && valid(passage));
+    pictures.setVisibility(accepted ? View.VISIBLE : View.GONE);
+    keep.setEnabled(!busy && valid(passage));
+    keep.setText(accepted ? "Passage selected · choose pictures below" : "Keep this passage");
+    reselect.setEnabled(!busy);
+    generate.setEnabled(!busy && accepted && valid(passage));
     pick.setEnabled(!busy);
     auto.setEnabled(!busy);
     use.setEnabled(!busy);
@@ -196,6 +246,7 @@ final class IllustrationComposer {
         tell("Choose a shorter passage, up to 2,500 characters.");
         return;
       }
+      accepted = false;
       passage = new JSONArray(cues.toString());
       highlight.accept(passage);
       refresh();
@@ -235,6 +286,7 @@ final class IllustrationComposer {
       JSONArray value = new JSONArray();
       for (int n = first; n <= last; n++) value.put(cues.getJSONObject(n));
       if (text(value).length() > 2500) return;
+      accepted = false;
       passage = value;
       highlight.accept(passage);
       if (another) {
@@ -353,7 +405,7 @@ final class IllustrationComposer {
   }
 
   private void review() {
-    if (busy || !valid(passage)) return;
+    if (busy || !accepted || !valid(passage)) return;
     if (activity.otherWorkRunning()) {
       tell("Wait for the current transcript request to finish.");
       return;
@@ -383,7 +435,9 @@ final class IllustrationComposer {
               + pictures
               + " of the server’s 3 daily image attempts will be used; cached pages reopen free."
               + " Provider charges apply and failed attempts count. Keep this screen open. There"
-              + " are no automatic retries; leaving stops pages not yet started."
+              + " are no automatic retries; leaving stops pages not yet started. Each successful"
+              + " page saves automatically before you review it. Closing the preview keeps your"
+              + " pictures."
               + (usage == null
                   ? ""
                   : " Last checked: " + usage.optInt("imagesRemaining", 3) + " attempts left."),
@@ -391,7 +445,7 @@ final class IllustrationComposer {
           CalmActivity.MUTED);
       sheet.space(16);
       sheet.action(
-          "Create " + pictures + " picture" + (pictures == 1 ? "" : "s"),
+          "Confirm & create " + pictures + " picture" + (pictures == 1 ? "" : "s"),
           true,
           () -> {
             if (!valid(cues) || !identity.equals(sourceIdentity)) return;
@@ -463,6 +517,9 @@ final class IllustrationComposer {
             store.cached(key, ".page.json"), meta.toString().getBytes(StandardCharsets.UTF_8));
         done++;
       }
+      List<ChapterScenes.Scene> pages = new ArrayList<>();
+      for (ChapterScenes.Scene scene : ChapterScenes.list(activity, book, index))
+        if (scene.cues().toString().equals(cues.toString())) pages.add(scene);
       int saved = done;
       handler.post(
           () -> {
@@ -475,6 +532,10 @@ final class IllustrationComposer {
                       + " saved with this chapter. Open saved pictures below to view them.");
               refresh();
               refreshAllowance();
+              if (saved > 0 && identity.equals(sourceIdentity) && valid(cues) && !pages.isEmpty())
+                dialog =
+                    ChapterScenes.review(
+                        activity, book, index, pages, 0, this::openGallery, this::anotherPicture);
             }
           });
     } catch (Exception e) {

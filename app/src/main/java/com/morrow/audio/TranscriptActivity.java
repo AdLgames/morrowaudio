@@ -536,6 +536,21 @@ public final class TranscriptActivity extends CalmActivity {
     }
   }
 
+  void selectIllustrationPassage() {
+    View window = (View) transcript.getParent();
+    ((ScrollView) body.getParent())
+        .post(
+            () -> {
+              ((ScrollView) body.getParent()).smoothScrollTo(0, window.getTop());
+              transcript.requestFocus();
+              Toast.makeText(
+                      this,
+                      "Hold the transcript text to select a different passage.",
+                      Toast.LENGTH_LONG)
+                  .show();
+            });
+  }
+
   private void applyIllustrationHighlights(SpannableString styled) {
     try {
       for (int n = 0; n < illustrationSelection.length(); n++) {

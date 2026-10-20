@@ -9,6 +9,7 @@ import static org.junit.Assert.*;
 
 import android.app.*;
 import android.content.*;
+import android.graphics.*;
 import android.os.*;
 import android.view.*;
 import android.widget.*;
@@ -16,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.*;
 import java.util.*;
+import org.json.*;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -57,6 +59,13 @@ public class AiStudioIntegrationTest {
     try {
       i.waitForIdleSync();
       i.runOnMainSync(
+          () ->
+              assertEquals(
+                  View.GONE,
+                  find(activity.getWindow().getDecorView(), "Illustration picture options")
+                      .getVisibility()));
+      onView(withContentDescription("Keep illustration passage")).perform(scrollTo(), click());
+      i.runOnMainSync(
           () -> {
             TextView preview =
                 (TextView)
@@ -67,13 +76,69 @@ public class AiStudioIntegrationTest {
                 .setSelection(2);
           });
       onView(withContentDescription("Review chapter illustrations")).perform(scrollTo(), click());
-      onView(org.hamcrest.Matchers.allOf(withText("Create 3 pictures"), isClickable()))
+      onView(org.hamcrest.Matchers.allOf(withText("Confirm & create 3 pictures"), isClickable()))
           .inRoot(isDialog())
           .perform(scrollTo())
           .check(matches(isDisplayed()));
       onView(withText("Change text or picture count"))
           .inRoot(isDialog())
           .perform(scrollTo(), click());
+      // Seed exact cached pages: confirmation must save chapter links and open review,
+      // without sending any image request or consuming a paid provider allowance.
+      JSONArray cues =
+          new JSONArray()
+              .put(
+                  new JSONObject()
+                      .put("chapter", 0)
+                      .put("startMs", 0)
+                      .put("endMs", 2000)
+                      .put("text", "Mara opened the gate, her face lit by the fire."));
+      for (int variation = 1; variation <= 3; variation++) {
+        String key =
+            book.id + "\ncomic\n" + cues + "\n" + (variation == 1 ? "" : "variation:" + variation);
+        Bitmap bitmap = Bitmap.createBitmap(1024, 1024, Bitmap.Config.ARGB_8888);
+        try (FileOutputStream out = new FileOutputStream(store.cached(key, ".jpg"))) {
+          bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
+        } finally {
+          bitmap.recycle();
+        }
+      }
+      onView(withContentDescription("Review chapter illustrations")).perform(scrollTo(), click());
+      onView(withText("Confirm & create 3 pictures"))
+          .inRoot(isDialog())
+          .perform(scrollTo(), click());
+      long reviewDeadline = SystemClock.elapsedRealtime() + 10000;
+      while (ChapterScenes.list(ctx, book, 0).size() != 3
+          && SystemClock.elapsedRealtime() < reviewDeadline) Thread.sleep(100);
+      assertEquals(
+          "Each cached image is linked to its chapter before review",
+          3,
+          ChapterScenes.list(ctx, book, 0).size());
+      Thread.sleep(300);
+      i.waitForIdleSync();
+      onView(withText("Next picture")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withText("Generate another · uses allowance"))
+          .inRoot(isDialog())
+          .perform(scrollTo(), click());
+      i.runOnMainSync(
+          () -> {
+            assertEquals(
+                View.GONE,
+                find(activity.getWindow().getDecorView(), "Illustration picture options")
+                    .getVisibility());
+            assertEquals(
+                0,
+                ((Spinner) find(activity.getWindow().getDecorView(), "Number of illustrations"))
+                    .getSelectedItemPosition());
+          });
+      assertEquals(
+          "Returning to selection keeps all successful pages",
+          3,
+          ChapterScenes.list(ctx, book, 0).size());
+      onView(withText("Select another passage")).perform(scrollTo(), click());
+      onView(withContentDescription("Audiobook transcript up to playback position"))
+          .check(matches(isDisplayed()));
+      onView(withContentDescription("Keep illustration passage")).perform(scrollTo(), click());
       try (ParcelFileDescriptor fd =
               i.getUiAutomation().executeShellCommand("screencap -p /sdcard/morrow-ai-studio.png");
           InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
@@ -100,7 +165,7 @@ public class AiStudioIntegrationTest {
                       .getText()
                       .toString()
                       .contains("Mara opened")));
-      // No confirmation to generate was tapped: this entire test stays local and free.
+      // All generated pages came from local fixtures; no paid provider was called.
     } finally {
       i.runOnMainSync(
           () -> {

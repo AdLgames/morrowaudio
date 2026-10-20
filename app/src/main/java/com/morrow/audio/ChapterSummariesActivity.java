@@ -584,20 +584,9 @@ public final class ChapterSummariesActivity extends CalmActivity {
   }
 
   private void openScene(Library.Book target, int index, ChapterScenes.Scene scene) {
-    CalmSheet image =
-        new CalmSheet(this, "Chapter " + (index + 1), "A moment, illustrated", target.title);
-    ImageView full = new ImageView(this);
-    full.setAdjustViewBounds(true);
-    full.setImageBitmap(BitmapFactory.decodeFile(scene.image().getAbsolutePath()));
-    full.setContentDescription("Saved graphic-novel scene");
-    image.content.addView(full, new LinearLayout.LayoutParams(-1, -2));
-    image.space(14);
-    image.text("An AI interpretation of this chapter’s selected passage.", 12, MUTED);
-    image.space(18);
-    image.action("Chapter transcript & tools", false, () -> illustrate(target, index));
-    image.action("Close", false, () -> {});
-    sheet = image.show();
-    ChapterScenes.protect(this, sheet, target, index, scene);
+    sheet =
+        ChapterScenes.review(
+            this, target, index, List.of(scene), 0, () -> {}, () -> illustrate(target, index));
   }
 
   private void openRecap(Library.Book target, int index) {

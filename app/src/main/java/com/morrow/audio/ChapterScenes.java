@@ -9,6 +9,54 @@ import org.json.*;
 final class ChapterScenes {
   record Scene(File image, String label, JSONArray cues, String sourceKey) {}
 
+  static android.app.Dialog review(
+      android.app.Activity activity,
+      Library.Book book,
+      int chapter,
+      List<Scene> pages,
+      int page,
+      Runnable gallery,
+      Runnable another) {
+    Scene scene = pages.get(page);
+    CalmSheet sheet =
+        new CalmSheet(
+            activity,
+            "Chapter " + (chapter + 1) + " · saved automatically",
+            "Your illustrated moment",
+            "Picture " + (page + 1) + " of " + pages.size() + " · " + book.title);
+    android.widget.ImageView image = new android.widget.ImageView(activity);
+    image.setAdjustViewBounds(true);
+    image.setContentDescription("Saved graphic-novel scene");
+    android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
+    options.inSampleSize = 2;
+    image.setImageBitmap(
+        android.graphics.BitmapFactory.decodeFile(scene.image().getAbsolutePath(), options));
+    sheet.content.addView(image, new android.widget.LinearLayout.LayoutParams(-1, -2));
+    sheet.space(14);
+    sheet.text(
+        "Saved with this chapter. Closing this preview keeps your pictures. Viewing saved artwork"
+            + " is free.",
+        12,
+        CalmSheet.MUTED);
+    sheet.space(14);
+    sheet.action("Chapter gallery", true, gallery);
+    if (page + 1 < pages.size())
+      sheet.action(
+          "Next picture",
+          false,
+          () -> review(activity, book, chapter, pages, page + 1, gallery, another));
+    if (page > 0)
+      sheet.action(
+          "Previous picture",
+          false,
+          () -> review(activity, book, chapter, pages, page - 1, gallery, another));
+    sheet.action("Generate another · uses allowance", false, another);
+    sheet.action("Close preview", false, () -> {});
+    android.app.Dialog dialog = sheet.show();
+    protect(activity, dialog, book, chapter, scene);
+    return dialog;
+  }
+
   static boolean reached(Library.Book book, int chapter, long end) {
     return chapter >= 0
         && chapter < book.chapters.size()
