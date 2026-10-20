@@ -7,9 +7,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <application android:theme="@style/AppTheme" android:label="Narrumo" android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:usesCleartextTraffic="false">
+    <queries><package android:name="com.google.android.projection.gearhead" /></queries>
+    <application android:theme="@style/AppTheme" android:label="Narrumo" android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher" android:appCategory="audio" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:usesCleartextTraffic="false">
+        <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+            <intent-filter><action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" /><category android:name="android.intent.category.DEFAULT" /></intent-filter>
         </activity>
         <activity android:name=".HelpActivity" android:exported="false" />
         <activity android:name=".ChapterSummariesActivity" android:exported="false" />
@@ -23,8 +26,9 @@
         <receiver android:name=".MorrowWidget" android:exported="false" android:label="Narrumo"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/morrow_widget_info" /></receiver>
         <activity android:name=".NoticesActivity" android:exported="false" />
         <service android:name=".TorrentService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.MEDIA_BUTTON" /></intent-filter></receiver>
         <service android:name=".PlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true">
-            <intent-filter><action android:name="androidx.media3.session.MediaSessionService" /></intent-filter>
+            <intent-filter><action android:name="androidx.media3.session.MediaSessionService" /><action android:name="androidx.media3.session.MediaLibraryService" /><action android:name="android.media.browse.MediaBrowserService" /></intent-filter>
         </service>
     </application>
 </manifest>

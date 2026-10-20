@@ -11,17 +11,22 @@ import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.audio.*;
 import androidx.media3.session.*;
+import androidx.media3.session.MediaLibraryService.*;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.*;
 import java.util.*;
+import java.util.concurrent.Executors;
 
 @androidx.annotation.OptIn(markerClass = androidx.media3.common.util.UnstableApi.class)
-public final class PlaybackService extends MediaSessionService {
+public final class PlaybackService extends MediaLibraryService {
   public static final String SLEEP = "morrow.sleep",
       SNAPSHOT = "morrow.snapshot",
       RESTORE = "morrow.restore",
       WIDGET = "morrow.widget";
   private ExoPlayer player;
-  private MediaSession session;
+  private MediaLibrarySession session;
+  private final ListeningExecutorService catalogIo =
+      MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor());
   private final Handler handler = new Handler(Looper.getMainLooper());
   private long deadline;
   private boolean chapterSleep;
@@ -114,25 +119,185 @@ public final class PlaybackService extends MediaSessionService {
             new Intent(this, MainActivity.class),
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     session =
-        new MediaSession.Builder(this, player)
-            .setSessionActivity(intent)
-            .setCallback(
-                new MediaSession.Callback() {
+        new MediaLibrarySession.Builder(
+                this,
+                player,
+                new MediaLibrarySession.Callback() {
                   @Override
                   public MediaSession.ConnectionResult onConnect(
                       MediaSession s, MediaSession.ControllerInfo c) {
-                    if (!c.isTrusted() && !getPackageName().equals(c.getPackageName()))
+                    boolean own =
+                        getPackageName().equals(c.getPackageName())
+                            && c.getUid() == android.os.Process.myUid();
+                    boolean car =
+                        "com.google.android.projection.gearhead".equals(c.getPackageName())
+                            && packageMatches(c);
+                    if (!own && !c.isTrusted() && !car)
                       return MediaSession.ConnectionResult.reject();
+                    SessionCommands.Builder commands =
+                        MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                            .buildUpon();
+                    if (own)
+                      commands
+                          .add(new SessionCommand(SLEEP, Bundle.EMPTY))
+                          .add(new SessionCommand(SNAPSHOT, Bundle.EMPTY))
+                          .add(new SessionCommand(RESTORE, Bundle.EMPTY))
+                          .add(new SessionCommand(WIDGET, Bundle.EMPTY));
                     return new MediaSession.ConnectionResult.AcceptedResultBuilder(s)
-                        .setAvailableSessionCommands(
-                            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS
-                                .buildUpon()
-                                .add(new SessionCommand(SLEEP, Bundle.EMPTY))
-                                .add(new SessionCommand(SNAPSHOT, Bundle.EMPTY))
-                                .add(new SessionCommand(RESTORE, Bundle.EMPTY))
-                                .add(new SessionCommand(WIDGET, Bundle.EMPTY))
-                                .build())
+                        .setAvailableSessionCommands(commands.build())
                         .build();
+                  }
+
+                  @Override
+                  public ListenableFuture<LibraryResult<MediaItem>> onGetLibraryRoot(
+                      MediaLibrarySession s, MediaSession.ControllerInfo c, LibraryParams params) {
+                    MediaItem root =
+                        params != null && params.isRecent
+                            ? CarLibrary.folder(CarLibrary.CONTINUE, "Continue listening")
+                            : CarLibrary.folder(CarLibrary.ROOT, "Narrumo");
+                    return Futures.immediateFuture(LibraryResult.ofItem(root, params));
+                  }
+
+                  @Override
+                  public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> onGetChildren(
+                      MediaLibrarySession s,
+                      MediaSession.ControllerInfo c,
+                      String parent,
+                      int page,
+                      int size,
+                      LibraryParams params) {
+                    List<Library.Book> books = new ArrayList<>(library.books);
+                    return catalogIo.submit(
+                        () -> {
+                          try {
+                            return LibraryResult.ofItemList(
+                                CarLibrary.page(CarLibrary.children(books, parent), page, size),
+                                params);
+                          } catch (Exception e) {
+                            return LibraryResult.ofError(SessionError.ERROR_BAD_VALUE);
+                          }
+                        });
+                  }
+
+                  @Override
+                  public ListenableFuture<LibraryResult<MediaItem>> onGetItem(
+                      MediaLibrarySession s, MediaSession.ControllerInfo c, String id) {
+                    List<Library.Book> books = new ArrayList<>(library.books);
+                    return catalogIo.submit(
+                        () -> {
+                          MediaItem item = CarLibrary.item(books, id);
+                          return item == null
+                              ? LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
+                              : LibraryResult.ofItem(item, null);
+                        });
+                  }
+
+                  @Override
+                  public ListenableFuture<LibraryResult<Void>> onSearch(
+                      MediaLibrarySession s,
+                      MediaSession.ControllerInfo c,
+                      String query,
+                      LibraryParams params) {
+                    if (query.trim().isEmpty() || query.length() > 120)
+                      return Futures.immediateFuture(
+                          LibraryResult.ofError(SessionError.ERROR_BAD_VALUE));
+                    List<Library.Book> books = new ArrayList<>(library.books);
+                    return catalogIo.submit(
+                        () -> {
+                          int count = CarLibrary.search(books, query).size();
+                          handler.post(
+                              () -> {
+                                if (!catalogIo.isShutdown())
+                                  s.notifySearchResultChanged(c, query, count, params);
+                              });
+                          return LibraryResult.ofVoid();
+                        });
+                  }
+
+                  @Override
+                  public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>>
+                      onGetSearchResult(
+                          MediaLibrarySession s,
+                          MediaSession.ControllerInfo c,
+                          String query,
+                          int page,
+                          int size,
+                          LibraryParams params) {
+                    List<Library.Book> books = new ArrayList<>(library.books);
+                    return catalogIo.submit(
+                        () -> {
+                          try {
+                            return LibraryResult.ofItemList(
+                                CarLibrary.page(CarLibrary.search(books, query), page, size),
+                                params);
+                          } catch (Exception e) {
+                            return LibraryResult.ofError(SessionError.ERROR_BAD_VALUE);
+                          }
+                        });
+                  }
+
+                  @Override
+                  public ListenableFuture<MediaSession.MediaItemsWithStartPosition> onSetMediaItems(
+                      MediaSession s,
+                      MediaSession.ControllerInfo c,
+                      List<MediaItem> requested,
+                      int start,
+                      long position) {
+                    if (getPackageName().equals(c.getPackageName())
+                        && c.getUid() == android.os.Process.myUid()
+                        && requested.stream().allMatch(m -> m.localConfiguration != null))
+                      return Futures.immediateFuture(
+                          new MediaSession.MediaItemsWithStartPosition(requested, start, position));
+                    try {
+                      if (requested.size() != 1)
+                        throw new IllegalArgumentException("Choose one library item");
+                      String id = requested.get(0).mediaId;
+                      String query = requested.get(0).requestMetadata.searchQuery;
+                      if (query != null) {
+                        List<MediaItem> found = CarLibrary.search(library.books, query);
+                        if (found.isEmpty())
+                          throw new IllegalArgumentException("No matching audiobook");
+                        id = found.get(0).mediaId;
+                      }
+                      return Futures.immediateFuture(CarLibrary.resolve(library.books, id));
+                    } catch (Exception e) {
+                      return Futures.immediateFailedFuture(e);
+                    }
+                  }
+
+                  @Override
+                  public ListenableFuture<List<MediaItem>> onAddMediaItems(
+                      MediaSession s, MediaSession.ControllerInfo c, List<MediaItem> requested) {
+                    if (getPackageName().equals(c.getPackageName())
+                        && c.getUid() == android.os.Process.myUid()
+                        && requested.stream().allMatch(m -> m.localConfiguration != null))
+                      return Futures.immediateFuture(requested);
+                    try {
+                      List<MediaItem> resolved = new ArrayList<>();
+                      for (MediaItem item : requested) {
+                        var result = CarLibrary.resolve(library.books, item.mediaId);
+                        resolved.add(result.mediaItems.get(result.startIndex));
+                      }
+                      return Futures.immediateFuture(resolved);
+                    } catch (Exception e) {
+                      return Futures.immediateFailedFuture(e);
+                    }
+                  }
+
+                  @Override
+                  public ListenableFuture<MediaSession.MediaItemsWithStartPosition>
+                      onPlaybackResumption(MediaSession s, MediaSession.ControllerInfo c) {
+                    Library.Book b =
+                        library.find(getSharedPreferences("settings", 0).getString("current", ""));
+                    if (b == null || b.chapters.isEmpty())
+                      b =
+                          CarLibrary.books(library.books).stream()
+                              .max(Comparator.comparingLong(book -> book.lastPlayed))
+                              .orElse(null);
+                    return b == null
+                        ? Futures.immediateFailedFuture(
+                            new IllegalStateException("Add an audiobook on your phone first"))
+                        : Futures.immediateFuture(CarLibrary.saved(b));
                   }
 
                   @Override
@@ -141,6 +306,10 @@ public final class PlaybackService extends MediaSessionService {
                       MediaSession.ControllerInfo c,
                       SessionCommand command,
                       Bundle args) {
+                    if (!getPackageName().equals(c.getPackageName())
+                        || c.getUid() != android.os.Process.myUid())
+                      return Futures.immediateFuture(
+                          new SessionResult(SessionError.ERROR_PERMISSION_DENIED));
                     if (command.customAction.equals(SNAPSHOT)) {
                       persist();
                       return Futures.immediateFuture(
@@ -186,9 +355,19 @@ public final class PlaybackService extends MediaSessionService {
                         new SessionResult(SessionError.ERROR_NOT_SUPPORTED));
                   }
                 })
+            .setSessionActivity(intent)
             .build();
     restore();
     handler.post(tick);
+  }
+
+  private boolean packageMatches(MediaSession.ControllerInfo controller) {
+    try {
+      return getPackageManager().getApplicationInfo(controller.getPackageName(), 0).uid
+          == controller.getUid();
+    } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+      return false;
+    }
   }
 
   private void restore() {
@@ -209,10 +388,17 @@ public final class PlaybackService extends MediaSessionService {
           new MediaMetadata.Builder()
               .setTitle(b.title)
               .setArtist(b.author)
-              .setAlbumTitle(c.title)
+              .setSubtitle(c.title)
+              .setAlbumTitle(b.title)
+              .setMediaType(MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER)
               .setIsBrowsable(false)
               .setIsPlayable(true);
-      if (!b.cover.isEmpty()) metadata.setArtworkUri(Uri.fromFile(new java.io.File(b.cover)));
+      if (!b.cover.isEmpty()) {
+        metadata.setArtworkUri(Uri.fromFile(new java.io.File(b.cover)));
+        byte[] artwork = CarLibrary.artwork(b.cover);
+        if (artwork != null)
+          metadata.setArtworkData(artwork, MediaMetadata.PICTURE_TYPE_FRONT_COVER);
+      }
       MediaItem.Builder item =
           new MediaItem.Builder()
               .setMediaId(b.id + ":" + i)
@@ -285,7 +471,7 @@ public final class PlaybackService extends MediaSessionService {
       };
 
   @Override
-  public MediaSession onGetSession(MediaSession.ControllerInfo info) {
+  public MediaLibrarySession onGetSession(MediaSession.ControllerInfo info) {
     return session;
   }
 
@@ -305,6 +491,7 @@ public final class PlaybackService extends MediaSessionService {
     getSharedPreferences("settings", 0).unregisterOnSharedPreferenceChangeListener(soundListener);
     getSharedPreferences("widget", 0).edit().putBoolean("playing", false).apply();
     MorrowWidget.updateAll(this);
+    catalogIo.shutdownNow();
     session.release();
     player.release();
     super.onDestroy();

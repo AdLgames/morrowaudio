@@ -35,6 +35,8 @@ jobs:
       - name: Test playback, torrent transfers and storage on Android 15
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          # Pin the archived stable binary: 37.2.12 repeatedly lost the emulator during playback.
+          emulator-build: 13610412
           api-level: 35
           target: google_apis
           arch: x86_64

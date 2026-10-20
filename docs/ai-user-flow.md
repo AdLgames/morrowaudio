@@ -5,6 +5,10 @@ The bottom navigation is **Library · Bookmarks · AI · Settings**. Settings an
 ```mermaid
 flowchart TD
     Library --> Listening[Listening screen]
+    Auto[Android Auto] --> Continue[Continue listening or browse books]
+    Continue --> CarChapter[Resume book or choose chapter]
+    CarChapter --> Shared[Shared phone playback and progress]
+    Shared --> Listening
     Library --> AI[AI section]
     Settings --> AI
     Listening --> Popup[Chapter recap popup]
@@ -34,3 +38,5 @@ The chapter studio places the illustration panel immediately beneath a scrollabl
 Choose 1–3 pictures, then review the exact passage before confirming. Each picture is one medium-quality, four-panel graphic-novel page. Multiple pictures use different framing of the same selected moment. They are requested sequentially and cached individually; failure stops the remaining batch, without automatic retries. Leaving stops pages not yet started. Saved pictures link directly to their chapter even if no recap exists yet. Rewinding hides unavailable source passages and pictures.
 
 The private server shares 25 chapter summary attempts, 20 other text attempts, and 3 image attempts per UTC day. Failed generation attempts count. Reading saved content, free passage suggestions and local transcription use no AI allowance. Android transcription remains English and may mishear names; review the source passage before creating pictures.
+
+Android Auto uses its standard media interface for library browsing and playback. AI transcript, passage selection and illustration controls remain in the phone’s AI section.

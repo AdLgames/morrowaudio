@@ -10,6 +10,14 @@ Download the latest signed APK from the [Narrumo website](https://morrow-audio.a
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
 
+## Android Auto (1.9.0)
+
+Connect your phone to an Android Auto head unit and open **Narrumo**. **Continue listening** shows recent unfinished books. **Audiobooks** opens your local library; choose a book to resume its saved chapter/position or select a chapter. Covers, title/author search, play/pause, previous/next chapter and seek controls use the same playback session as your phone. Large libraries and long chapter lists are grouped into browse folders. Import audio and grant folder access on your phone first; Android Auto does not copy the books to your car.
+
+For this directly downloaded APK, Android Auto may hide Narrumo until **Unknown sources** is enabled in Android Auto’s own developer settings: open Android Auto settings, tap the Version/version-permission section ten times, confirm developer mode, then open the overflow menu → Developer settings → Unknown sources. Reconnect the phone and check Customize launcher if needed. [Google’s testing instructions](https://developer.android.com/training/cars/testing#unknown-sources) describe this option for media apps. This is phone-projected Android Auto; installing directly on an Android Automotive OS car is a separate build.
+
+The app uses Media3 `MediaLibraryService`, its platform media-browser bridge, an automotive media declaration and media-button resumption. Car selections resolve only known local library IDs, preserving existing SAF access and M4B chapter clipping. Private restore/widget/sleep maintenance commands remain available only to the app’s own UID. Browse artwork is small embedded image data, so the car does not need access to private cover files. Real-vehicle and Desktop Head Unit verification still require access to that hardware/runtime; the automated test connects through both Android’s platform MediaBrowser and Media3 MediaBrowser.
+
 ## One AI section and visible illustrations (1.9.0)
 
 The bottom **AI** tab contains chapter recaps, transcripts, illustrations, Book words, passage questions and connection settings. Book details, Settings and the listening screen all lead here with the book/chapter context. The recap popup has a direct **Illustrate this chapter** action. Chapter studio keeps **AI tools** and **Back to listening** available in its footer.

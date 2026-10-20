@@ -53,6 +53,8 @@ public final class MainActivity extends Activity {
   private long lastRender;
   private String lastCurrent = "";
 
+  private String pendingVoiceQuery;
+
   @Override
   public void onCreate(Bundle state) {
     AccentPalette.apply(this);
@@ -99,6 +101,7 @@ public final class MainActivity extends Activity {
     importCompletedDownload(getIntent());
     openWidgetBook(getIntent());
     openSummaryBook(getIntent());
+    openVoiceSearch(getIntent());
     if (!lib.loadError.isEmpty())
       new AlertDialog.Builder(this)
           .setTitle("Library needs attention")
@@ -115,6 +118,42 @@ public final class MainActivity extends Activity {
     openWidgetBook(intent);
     openTab(intent);
     openSummaryBook(intent);
+    openVoiceSearch(intent);
+  }
+
+  private void openVoiceSearch(Intent intent) {
+    if (!android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH.equals(
+        intent.getAction())) return;
+    String query = intent.getStringExtra(android.app.SearchManager.QUERY);
+    pendingVoiceQuery = query == null ? "" : query.trim();
+    intent.setAction(null);
+    if (player != null) playVoiceSearch();
+  }
+
+  private void playVoiceSearch() {
+    if (!alive || player == null || pendingVoiceQuery == null) return;
+    String query = pendingVoiceQuery;
+    pendingVoiceQuery = null;
+    if (query.length() > 120) {
+      toast("Choose an audiobook from your library");
+      return;
+    }
+    Library.Book book =
+        query.isEmpty()
+            ? lib.find(getSharedPreferences("settings", 0).getString("current", ""))
+            : lib.books.stream()
+                .filter(
+                    b ->
+                        (b.title + " " + b.author)
+                            .toLowerCase(Locale.ROOT)
+                            .contains(query.toLowerCase(Locale.ROOT)))
+                .findFirst()
+                .orElse(null);
+    if (book == null || book.chapters.isEmpty()) {
+      toast("No matching audiobook found on this phone");
+      return;
+    }
+    play(book, book.finished ? 0 : book.index, book.finished ? 0 : book.position, true);
   }
 
   private void openSummaryBook(Intent intent) {
@@ -183,6 +222,7 @@ public final class MainActivity extends Activity {
         () -> {
           try {
             player = controllerFuture.get();
+            handler.post(this::playVoiceSearch);
             player.addListener(
                 new Player.Listener() {
                   @Override
