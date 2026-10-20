@@ -164,11 +164,12 @@ public class PlaybackIntegrationTest {
                 != null,
         10000);
     screenshot(instrumentation, ctx, "library");
-    instrumentation.runOnMainSync(
-        () ->
-            findDescription(
-                    activity.getWindow().getDecorView(), "Catch up on the last completed chapter")
-                .performClick());
+    androidx.test.espresso.Espresso.onView(
+            androidx.test.espresso.matcher.ViewMatchers.withContentDescription(
+                "Catch up on the last completed chapter"))
+        .perform(
+            androidx.test.espresso.action.ViewActions.scrollTo(),
+            androidx.test.espresso.action.ViewActions.click());
     androidx.test.espresso.Espresso.onView(
             androidx.test.espresso.matcher.ViewMatchers.withText("Back to the story"))
         .inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog())
