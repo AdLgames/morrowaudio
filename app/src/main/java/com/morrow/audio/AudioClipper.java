@@ -188,7 +188,7 @@ final class AudioClipper {
 
     void finish() throws IOException {
       flush();
-      if (count < 1600 || count > 4800000)
+      if (count < 16 || count > 4800000)
         throw new IOException("There was not enough decodable audio in this section");
       ByteBuffer header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN);
       header

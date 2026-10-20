@@ -58,6 +58,29 @@ public class TranscriptTimelineTest {
   }
 
   @Test
+  public void backgroundWindowsStopAtExistingTextAndAtChapterEnd() {
+    var ranges =
+        List.of(new TranscriptTimeline.Range(1000, 3000), new TranscriptTimeline.Range(5000, 6000));
+    assertEquals(
+        new TranscriptTimeline.Range(0, 1000),
+        TranscriptTimeline.nextWindow(ranges, 10000, 300000));
+    assertEquals(
+        new TranscriptTimeline.Range(3000, 5000),
+        TranscriptTimeline.nextWindow(
+            List.of(
+                new TranscriptTimeline.Range(0, 3000), new TranscriptTimeline.Range(5000, 6000)),
+            10000,
+            300000));
+    assertEquals(
+        new TranscriptTimeline.Range(0, 300000),
+        TranscriptTimeline.nextWindow(List.of(), 600000, 300000));
+    assertEquals(
+        new TranscriptTimeline.Range(1000, 1000),
+        TranscriptTimeline.nextWindow(
+            List.of(new TranscriptTimeline.Range(0, 1000)), 1000, 300000));
+  }
+
+  @Test
   public void findsGapsWithoutChargingForAlreadyCoveredOrSilentAudio() {
     var ranges =
         List.of(

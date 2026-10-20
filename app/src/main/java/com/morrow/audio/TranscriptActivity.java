@@ -25,7 +25,20 @@ public final class TranscriptActivity extends CalmActivity {
   private int chapter;
   private TranscriptStore store;
   private TranscriptStore.Data data;
-  private TextView status, transcript, result, chapterButton, generate;
+  private TextView status,
+      transcript,
+      result,
+      chapterButton,
+      generate,
+      cancelLocal,
+      vocabularyButton,
+      originalButton;
+  private BookWordGuide.Saved wordGuide;
+  private File wordGuideFile;
+  private boolean localTranscribing;
+  private volatile boolean cancelRequested;
+  private volatile Thread jobThread;
+  private String workMessage = "";
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   private CompanionClient client;
@@ -64,10 +77,17 @@ public final class TranscriptActivity extends CalmActivity {
     }
     store = new TranscriptStore(this);
     client = new CompanionClient(this);
+    wordGuideFile = BookWordGuide.path(store, book);
+    try {
+      wordGuide = BookWordGuide.load(wordGuideFile);
+    } catch (Exception e) {
+      tell("Could not read the book word guide. Your original transcript is kept.");
+    }
     screen("Between the lines.", "Read along · remember · imagine");
     TextView hint =
         text(
-            "Completed lines appear as you listen. Long-press a passage to recap or illustrate it.",
+            "Completed lines appear as you listen. Transcribe English on this phone for free."
+                + " Long-press text for optional AI recaps or illustrations.",
             13,
             MUTED);
     hint.setLineSpacing(d(3), 1);
@@ -160,8 +180,44 @@ public final class TranscriptActivity extends CalmActivity {
               }
             }));
     gap(body, 12);
-    generate = button("Transcribe the next heard section", false, this::transcribe);
+    generate = button("Transcribe on this phone · free", false, this::transcribe);
+    generate.setContentDescription("Create offline English transcript");
     body.addView(generate);
+    gap(body, 12);
+    body.addView(
+        text(
+            "Offline English · no audio upload or API charges. First use prepares about 71 MB of"
+                + " speech data. Unusual names and accents may need corrections.",
+            13,
+            MUTED));
+    gap(body, 12);
+    vocabularyButton = button("Book words · optional AI guide", false, this::bookWords);
+    vocabularyButton.setContentDescription("Review book-specific word guide");
+    body.addView(vocabularyButton);
+    originalButton = button("Show original transcript", false, this::toggleOriginal);
+    originalButton.setContentDescription("Toggle original transcript");
+    body.addView(originalButton);
+    body.addView(
+        text(
+            "A tiny AI guide suggests names and pronunciation hints from heard text. Review each"
+                + " spelling before using it. Approved corrections run locally; the original is"
+                + " kept. This does not train the speech model.",
+            13,
+            MUTED));
+    cancelLocal =
+        button(
+            "Cancel transcription",
+            false,
+            () -> {
+              cancelRequested = true;
+              workMessage = "Stopping transcription…";
+              cancelLocal.setEnabled(false);
+              Thread thread = jobThread;
+              if (thread != null) thread.interrupt();
+              render();
+            });
+    cancelLocal.setVisibility(View.GONE);
+    body.addView(cancelLocal);
     gap(body, 12);
     body.addView(
         button(
@@ -178,7 +234,7 @@ public final class TranscriptActivity extends CalmActivity {
     gap(body, 12);
     body.addView(
         button(
-            "Export this chapter’s transcript",
+            "Export this chapter’s original transcript",
             false,
             () -> {
               exportChapter = chapter;
@@ -203,8 +259,9 @@ public final class TranscriptActivity extends CalmActivity {
     body.addView(result);
     gap(body, 24);
     note(
-        "Private test limits · 20 text requests, 30 minutes of transcription and 3 medium-quality"
-            + " square comic pages per day across the server. A page has four panels. Failed"
+        "Offline transcription has no daily allowance. Optional AI test limits · 20 text requests"
+            + " and 3 medium-quality square comic pages per day across the private server. A page"
+            + " has four panels. Failed"
             + " attempts count. Requests never retry automatically. Transcripts and pages stay on"
             + " this device and are not in library backups; use Export to keep a copy.");
     body.addView(
@@ -312,6 +369,17 @@ public final class TranscriptActivity extends CalmActivity {
     }
     long limit = chapterCutoff();
     List<TranscriptTimeline.Cue> heard = TranscriptTimeline.heard(data.cues(), limit);
+    boolean guideReached = wordGuide != null && stillHeard(wordGuide.evidence());
+    List<BookVocabulary.Entry> corrections = activeCorrections();
+    vocabularyButton.setEnabled(!busy);
+    vocabularyButton.setText(
+        wordGuide == null ? "Book words · optional AI guide" : "Book words · review saved guide");
+    originalButton.setVisibility(
+        guideReached && !wordGuide.approved().isEmpty() ? View.VISIBLE : View.GONE);
+    originalButton.setText(
+        wordGuide != null && wordGuide.original()
+            ? "Show reviewed book spellings"
+            : "Show original transcript");
     long coverage = TranscriptTimeline.nextStart(data.ranges(), limit);
     status.setText(
         "Chapter "
@@ -320,9 +388,15 @@ public final class TranscriptActivity extends CalmActivity {
             + Library.clock(limit)
             + "\n"
             + heard.size()
-            + " completed lines · processed timeline through "
+            + " completed lines"
+            + (corrections.isEmpty() ? " · original text" : " · reviewed book spellings")
+            + " · processed timeline through "
             + Library.clock(coverage)
-            + (busy ? "\nWorking… please keep this screen open." : ""));
+            + (busy
+                ? "\n"
+                    + (workMessage.isEmpty() ? "Working…" : workMessage)
+                    + " Please keep this screen open."
+                : ""));
     StringBuilder text = new StringBuilder();
     lines.clear();
     int size = 0, first = heard.size();
@@ -331,7 +405,11 @@ public final class TranscriptActivity extends CalmActivity {
       size += heard.get(first).text().length() + 2;
     }
     for (int n = first; n < heard.size(); n++) {
-      TranscriptTimeline.Cue cue = heard.get(n);
+      TranscriptTimeline.Cue raw = heard.get(n);
+      String corrected = BookVocabulary.correct(raw.text(), corrections);
+      TranscriptTimeline.Cue cue =
+          new TranscriptTimeline.Cue(
+              raw.startMs(), raw.endMs(), corrected.length() <= 4000 ? corrected : raw.text());
       int at = text.length();
       text.append(cue.text());
       lines.add(new Line(cue, at, text.length()));
@@ -389,6 +467,10 @@ public final class TranscriptActivity extends CalmActivity {
   }
 
   private JSONArray recentCues() throws Exception {
+    return recentCues(12000);
+  }
+
+  private JSONArray recentCues(int maxCharacters) throws Exception {
     Cutoff cutoff = cutoff();
     List<JSONObject> recent = new ArrayList<>();
     int length = 0;
@@ -400,7 +482,8 @@ public final class TranscriptActivity extends CalmActivity {
               index == cutoff.chapter ? cutoff.position : book.chapters.get(index).duration);
       for (int n = cues.size() - 1; n >= 0; n--) {
         TranscriptTimeline.Cue c = cues.get(n);
-        if (length + c.text().length() + 1 > 12000) break outer;
+        if (length + c.text().length() + 1 > maxCharacters
+            || recent.size() >= (maxCharacters == 3000 ? 100 : 1000)) break outer;
         recent.add(cue(index, c, c.text()));
         length += c.text().length() + 1;
       }
@@ -593,6 +676,12 @@ public final class TranscriptActivity extends CalmActivity {
       tell("A request is already running.");
       return;
     }
+    if (ChapterSummaryService.running) {
+      tell(
+          "Chapter processing is running in the background. Pause it on the chapter summaries"
+              + " screen before transcribing here.");
+      return;
+    }
     long end = chapterCutoff(), from = TranscriptTimeline.nextStart(data.ranges(), end);
     end = Math.min(end, from + 300000);
     final long start = from, stop = end;
@@ -601,67 +690,231 @@ public final class TranscriptActivity extends CalmActivity {
       tell("No new heard audio to transcribe. Listen a little further or choose another chapter.");
       return;
     }
-    new AlertDialog.Builder(this)
-        .setTitle("Transcribe this heard section?")
-        .setMessage(
-            "Only chapter "
-                + (index + 1)
-                + ", "
-                + Library.clock(start)
-                + "–"
-                + Library.clock(stop)
-                + ", will be decoded and uploaded to your private server and OpenAI. This incurs"
-                + " transcription charges and uses the 30-minute daily server allowance. Audio is"
-                + " not retained by Narrumo’s server. Keep this screen open until finished.")
-        .setPositiveButton(
-            "Send audio clip",
-            (dialog, which) -> {
-              if (chapter != index || chapterCutoff() < stop) {
-                tell("Playback moved before this section. Choose it again.");
-                return;
-              }
-              runJob(
-                  () -> {
-                    File clip = null;
-                    try {
-                      Library.Chapter source = book.chapters.get(index);
-                      clip = AudioClipper.extract(this, source, start, stop);
-                      JSONObject reply = client.request("/transcribe", null, clip);
-                      JSONArray values = reply.getJSONArray("cues");
-                      long duration = reply.getLong("durationMs");
-                      if (duration <= 0 || duration > stop - start + 100)
-                        throw new IOException("The server returned an invalid clip duration");
-                      TranscriptStore.Data prior = store.load(book, source);
-                      List<TranscriptTimeline.Cue> cues = new ArrayList<>(prior.cues());
-                      for (int n = 0; n < values.length(); n++) {
-                        JSONObject cue = values.getJSONObject(n);
-                        long a = cue.getLong("startMs"), b = cue.getLong("endMs");
-                        if (a < 0 || b > duration)
-                          throw new IOException("The server returned invalid cue times");
-                        cues.add(
-                            new TranscriptTimeline.Cue(
-                                start + a, start + b, cue.getString("text")));
-                      }
-                      cues.sort(Comparator.comparingLong(TranscriptTimeline.Cue::startMs));
-                      List<TranscriptTimeline.Range> ranges = new ArrayList<>(prior.ranges());
-                      ranges.add(new TranscriptTimeline.Range(start, stop));
-                      store.save(book, source, new TranscriptStore.Data(cues, ranges));
+    if (chapter != index || chapterCutoff() < stop) {
+      tell("Playback moved before this section. Choose it again.");
+      return;
+    }
+    localTranscribing = true;
+    workMessage = "Preparing heard audio on this phone…";
+    runJob(
+        () -> {
+          File clip = null;
+          try {
+            Library.Chapter source = book.chapters.get(index);
+            clip = AudioClipper.extract(this, source, start, stop);
+            OfflineTranscriber.Result reply =
+                OfflineTranscriber.transcribe(
+                    this,
+                    clip,
+                    message ->
+                        handler.post(
+                            () -> {
+                              if (alive && localTranscribing && !cancelRequested) {
+                                workMessage = message;
+                                render();
+                              }
+                            }));
+            OfflineTranscriber.checkCancelled();
+            if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
+            synchronized (TranscriptStore.class) {
+              TranscriptStore.Data prior = store.load(book, source);
+              List<TranscriptTimeline.Cue> cues = new ArrayList<>(prior.cues());
+              for (TranscriptTimeline.Cue cue : reply.cues())
+                cues.add(
+                    new TranscriptTimeline.Cue(
+                        start + cue.startMs(), start + cue.endMs(), cue.text()));
+              cues.sort(Comparator.comparingLong(TranscriptTimeline.Cue::startMs));
+              List<TranscriptTimeline.Range> ranges = new ArrayList<>(prior.ranges());
+              ranges.add(
+                  new TranscriptTimeline.Range(start, Math.min(stop, start + reply.durationMs())));
+              OfflineTranscriber.checkCancelled();
+              store.save(book, source, new TranscriptStore.Data(cues, ranges));
+            }
+            handler.post(
+                () -> {
+                  if (alive) {
+                    if (chapter == index) loadChapter();
+                    tell(
+                        reply.cues().isEmpty()
+                            ? "No English speech found. This section is marked as processed. You"
+                                + " can import matching timed text."
+                            : "Offline transcript saved. No audio was uploaded and no API charge"
+                                + " was made.");
+                  }
+                });
+          } finally {
+            if (clip != null) clip.delete();
+          }
+        });
+  }
+
+  private List<BookVocabulary.Entry> activeCorrections() {
+    return wordGuide != null && !wordGuide.original() && stillHeard(wordGuide.evidence())
+        ? wordGuide.corrections()
+        : List.of();
+  }
+
+  private void toggleOriginal() {
+    if (busy || wordGuide == null) return;
+    try {
+      BookWordGuide.Saved next =
+          new BookWordGuide.Saved(
+              wordGuide.entries(),
+              wordGuide.approved(),
+              wordGuide.evidence(),
+              !wordGuide.original());
+      BookWordGuide.save(wordGuideFile, next);
+      wordGuide = next;
+      rendered = null;
+      render();
+    } catch (Exception e) {
+      tell("Could not save this display preference.");
+    }
+  }
+
+  private void bookWords() {
+    if (busy) return;
+    if (wordGuide != null) {
+      reviewWords();
+      return;
+    }
+    try {
+      JSONArray cues = recentCues(3000);
+      if (cues.length() == 0) {
+        tell(
+            "Transcribe a heard section first. The guide only suggests spellings for words in that"
+                + " text.");
+        return;
+      }
+      final String source = passage(cues);
+      Cutoff c = cutoff();
+      if (book.title.trim().isEmpty() || book.title.length() > 180 || book.author.length() > 120) {
+        tell(
+            "Edit the book to use a title of up to 180 characters and author of up to 120"
+                + " characters.");
+        return;
+      }
+      final JSONObject input =
+          new JSONObject()
+              .put("title", book.title)
+              .put("author", book.author)
+              .put("cues", cues)
+              .put(
+                  "cutoff",
+                  new JSONObject().put("chapter", c.chapter).put("positionMs", c.position));
+      new AlertDialog.Builder(this)
+          .setTitle("Make a small book word guide?")
+          .setMessage(
+              "Send this book’s title, author and "
+                  + source.length()
+                  + " characters of already-heard transcript to your private server and OpenAI. No"
+                  + " audio is uploaded. The reply is limited to 8 terms and 100 words total,"
+                  + " including pronunciation hints. It uses one shared daily text request and"
+                  + " incurs a small API charge; the 100-word limit is not a price cap. The guide"
+                  + " is cached. AI may guess wrongly: review each suggestion. We request no plot"
+                  + " details, but spelling suggestions cannot be guaranteed spoiler-free.")
+          .setPositiveButton(
+              "Create guide",
+              (dialog, which) -> {
+                if (!stillHeard(cues)) {
+                  tell("Playback moved before this text. Choose again.");
+                  return;
+                }
+                workMessage = "Preparing a small book word guide…";
+                runJob(
+                    () -> {
+                      JSONObject reply = client.request("/vocabulary", input, null);
+                      List<BookVocabulary.Entry> entries = BookWordGuide.parse(reply, source);
+                      BookWordGuide.Saved saved =
+                          new BookWordGuide.Saved(entries, Set.of(), cues, false);
+                      BookWordGuide.save(wordGuideFile, saved);
                       handler.post(
                           () -> {
                             if (alive) {
-                              if (chapter == index) loadChapter();
-                              tell(
-                                  "Transcript saved locally. Speech recognition can make"
-                                      + " mistakes.");
+                              wordGuide = saved;
+                              rendered = null;
+                              render();
+                              reviewWords();
                             }
                           });
-                    } finally {
-                      if (clip != null) clip.delete();
-                    }
-                  });
+                    });
+              })
+          .setNegativeButton("Keep on phone", null)
+          .show();
+    } catch (Exception e) {
+      tell("Could not prepare the book word guide.");
+    }
+  }
+
+  private void reviewWords() {
+    if (wordGuide == null) return;
+    if (!stillHeard(wordGuide.evidence())) {
+      tell(
+          "Reach the guide’s source text again to view or use these suggestions. Original text is"
+              + " shown.");
+      return;
+    }
+    if (wordGuide.entries().isEmpty()) {
+      new AlertDialog.Builder(this)
+          .setTitle("No confident book words found")
+          .setMessage(
+              "This result is saved, so reopening does not use another AI request. Your transcript"
+                  + " stays unchanged.")
+          .setPositiveButton("Close", null)
+          .setNeutralButton("Delete guide", (d, w) -> deleteWords())
+          .show();
+      return;
+    }
+    BookWordGuide.Saved guide = wordGuide;
+    String[] labels = new String[guide.entries().size()];
+    boolean[] checked = new boolean[labels.length];
+    for (int n = 0; n < labels.length; n++) {
+      BookVocabulary.Entry e = guide.entries().get(n);
+      labels[n] = "“" + e.heard() + "” → " + e.spelling() + "\nSay: " + e.pronunciation();
+      checked[n] = guide.approved().contains(n);
+    }
+    new AlertDialog.Builder(this)
+        .setTitle("Review spellings · select to apply")
+        .setMultiChoiceItems(labels, checked, (dialog, n, value) -> checked[n] = value)
+        .setPositiveButton(
+            "Use selected locally",
+            (dialog, which) -> {
+              if (!stillHeard(guide.evidence())) {
+                tell("Reach this source text again first.");
+                return;
+              }
+              Set<Integer> approved = new HashSet<>();
+              for (int n = 0; n < checked.length; n++) if (checked[n]) approved.add(n);
+              try {
+                BookWordGuide.Saved next =
+                    new BookWordGuide.Saved(
+                        guide.entries(), Set.copyOf(approved), guide.evidence(), false);
+                BookWordGuide.save(wordGuideFile, next);
+                wordGuide = next;
+                rendered = null;
+                render();
+                tell(
+                    "Reviewed spellings apply only to whole matching phrases, within transcript"
+                        + " lines. Original text and timestamps are kept; export always saves the"
+                        + " original. Pronunciation hints are for you: they do not train the"
+                        + " offline recognizer.");
+              } catch (Exception e) {
+                tell("Could not save reviewed book words.");
+              }
             })
-        .setNegativeButton("Cancel", null)
+        .setNegativeButton("Close", null)
+        .setNeutralButton("Delete guide", (dialog, which) -> deleteWords())
         .show();
+  }
+
+  private void deleteWords() {
+    if (wordGuideFile.exists() && !wordGuideFile.delete()) {
+      tell("Could not delete the saved guide.");
+      return;
+    }
+    wordGuide = null;
+    rendered = null;
+    render();
   }
 
   private interface Job {
@@ -671,26 +924,40 @@ public final class TranscriptActivity extends CalmActivity {
   private void runJob(Job job) {
     if (busy) return;
     busy = true;
+    cancelRequested = false;
+    cancelLocal.setVisibility(localTranscribing ? View.VISIBLE : View.GONE);
+    cancelLocal.setEnabled(true);
     generate.setEnabled(false);
     render();
     io.execute(
         () -> {
+          jobThread = Thread.currentThread();
           try {
+            if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
             job.run();
           } catch (Exception e) {
             handler.post(
                 () -> {
                   if (alive)
                     tell(
-                        e instanceof IOException
-                            ? e.getMessage()
-                            : "Could not complete this request. No automatic retry was made.");
+                        cancelRequested
+                                || e instanceof InterruptedException
+                                || e instanceof InterruptedIOException
+                            ? "Transcription cancelled. Previously saved text is kept."
+                            : e instanceof IOException
+                                ? e.getMessage()
+                                : "Could not complete this request. No automatic retry was made.");
                 });
           } finally {
+            jobThread = null;
+            Thread.interrupted();
             handler.post(
                 () -> {
                   if (alive) {
                     busy = false;
+                    localTranscribing = false;
+                    workMessage = "";
+                    cancelLocal.setVisibility(View.GONE);
                     generate.setEnabled(true);
                     render();
                   }
@@ -807,6 +1074,10 @@ public final class TranscriptActivity extends CalmActivity {
     if (code != RESULT_OK || intent == null || intent.getData() == null) return;
     Uri uri = intent.getData();
     if (request == 71) {
+      if (ChapterSummaryService.running) {
+        tell("Pause background chapter processing before replacing its transcript.");
+        return;
+      }
       final int index = importChapter;
       runJob(
           () -> {
@@ -871,7 +1142,8 @@ public final class TranscriptActivity extends CalmActivity {
   protected void onDestroy() {
     alive = false;
     handler.removeCallbacksAndMessages(null);
-    client.cancel();
+    cancelRequested = true;
+    if (client != null) client.cancel();
     io.shutdownNow();
     if (future != null) MediaController.releaseFuture(future);
     super.onDestroy();

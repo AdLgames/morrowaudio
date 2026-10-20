@@ -5,12 +5,15 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application android:theme="@style/AppTheme" android:label="Narrumo" android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
         <activity android:name=".HelpActivity" android:exported="false" />
+        <activity android:name=".ChapterSummariesActivity" android:exported="false" />
+        <service android:name=".ChapterSummaryService" android:exported="false" android:foregroundServiceType="mediaProcessing|dataSync" />
         <activity android:name=".TranscriptActivity" android:exported="false" />
         <activity android:name=".AiTrialActivity" android:exported="false" />
         <activity android:name=".DownloadsActivity" android:exported="false" />

@@ -73,10 +73,12 @@ final class CompanionClient {
             switch (status) {
               case 401 -> "The private server did not accept your access token.";
               case 404 ->
-                  "Your AI server needs the transcript and comic update. The older passage test"
-                      + " still works.";
-              case 409 ->
-                  "This comic is still generating. Wait a moment, then reopen the same selection.";
+                  route.equals("/chapter-summary")
+                      ? "No completed chapter result is cached. Select this chapter in a new batch"
+                            + " to authorise another attempt."
+                      : "Your AI server needs the latest reading companion update. The older"
+                            + " passage test still works.";
+              case 409 -> "This request is still generating. Wait a moment before reopening it.";
               case 429 ->
                   "The private server’s daily allowance is used up. Text: 20 requests; audio: 30"
                       + " minutes; images: 3 attempts. Resets at midnight UTC.";

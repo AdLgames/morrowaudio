@@ -1,0 +1,54 @@
+// The model is downloaded at BUILD time and shipped inside the APK. No runtime download.
+def speechModelSha = '30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498'
+def speechModelName = 'vosk-model-small-en-us-0.15.zip'
+def speechAssets = layout.buildDirectory.dir('generated/offlineSpeechAssets')
+
+tasks.register('bundleOfflineSpeech') {
+    inputs.property('modelSha256', speechModelSha)
+    outputs.file(speechAssets.map { it.file('speech/' + speechModelName) })
+    doLast {
+        def sha256 = { File input ->
+            def digest = java.security.MessageDigest.getInstance('SHA-256')
+            input.withInputStream { stream ->
+                byte[] buffer = new byte[65536]
+                int n
+                while ((n = stream.read(buffer)) != -1) digest.update(buffer, 0, n)
+            }
+            digest.digest().encodeHex().toString()
+        }
+        def cached = new File(gradle.gradleUserHomeDir, 'caches/narrumo-models/' + speechModelName)
+        cached.parentFile.mkdirs()
+        if (!cached.isFile() || sha256(cached) != speechModelSha) {
+            def temporary = new File(cached.path + '.download')
+            temporary.delete()
+            try {
+                def connection = new URI('https://alphacephei.com/vosk/models/' + speechModelName).toURL().openConnection()
+                connection.connectTimeout = 30000
+                connection.readTimeout = 120000
+                connection.inputStream.withCloseable { input ->
+                    temporary.withOutputStream { output ->
+                        byte[] buffer = new byte[65536]
+                        long size = 0
+                        int n
+                        while ((n = input.read(buffer)) != -1) {
+                            size += n
+                            if (size > 50000000) throw new GradleException('Offline model exceeded its expected download size')
+                            output.write(buffer, 0, n)
+                        }
+                    }
+                }
+                if (sha256(temporary) != speechModelSha) throw new GradleException('Offline speech model checksum mismatch')
+                java.nio.file.Files.move(temporary.toPath(), cached.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            } finally {
+                temporary.delete()
+            }
+        }
+        def output = speechAssets.get().file('speech/' + speechModelName).asFile
+        output.parentFile.mkdirs()
+        java.nio.file.Files.copy(cached.toPath(), output.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    }
+}
+
+android.sourceSets.main.assets.srcDir(speechAssets)
+android.androidResources.noCompress += ['zip']
+tasks.named('preBuild').configure { dependsOn('bundleOfflineSpeech') }

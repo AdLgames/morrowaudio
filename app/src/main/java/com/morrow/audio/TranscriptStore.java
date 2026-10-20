@@ -78,6 +78,8 @@ final class TranscriptStore {
             .getBytes(StandardCharsets.UTF_8);
     if (bytes.length > 10000000) throw new IOException("This chapter’s transcript is too large");
     write(path(book, chapter), bytes);
+    File summary = ChapterSummaryStore.summaryFile(this, book, chapter);
+    if (summary.exists()) summary.delete();
   }
 
   File cached(String key, String extension) {
