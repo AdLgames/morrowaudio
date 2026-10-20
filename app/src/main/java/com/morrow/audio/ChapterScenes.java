@@ -62,7 +62,7 @@ final class ChapterScenes {
         JSONObject meta =
             new JSONObject(
                 new String(
-                    TranscriptStore.read(new FileInputStream(file), 20000),
+                    TranscriptStore.read(new FileInputStream(file), 200000),
                     StandardCharsets.UTF_8));
         if (!book.id.equals(meta.optString("book"))) continue;
         JSONArray cues = meta.getJSONArray("cues");

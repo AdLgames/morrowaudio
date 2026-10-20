@@ -192,7 +192,7 @@ final class IllustrationComposer {
         tell("Select completed transcript text first.");
         return;
       }
-      if (text(cues).length() > 2500) {
+      if (cues.length() > 1000 || text(cues).length() > 2500) {
         tell("Choose a shorter passage, up to 2,500 characters.");
         return;
       }
@@ -276,7 +276,7 @@ final class IllustrationComposer {
         choose(
             new JSONObject(
                     new String(
-                        TranscriptStore.read(new FileInputStream(cache), 40000),
+                        TranscriptStore.read(new FileInputStream(cache), 200000),
                         StandardCharsets.UTF_8))
                 .getJSONArray("cues"));
         return;
@@ -337,7 +337,7 @@ final class IllustrationComposer {
   }
 
   private void validateChoice(JSONArray all, JSONArray choice) throws Exception {
-    if (choice.length() == 0 || text(choice).length() > 2500)
+    if (choice.length() == 0 || choice.length() > 1000 || text(choice).length() > 2500)
       throw new IOException("The AI did not return a valid source passage.");
     int start = -1;
     for (int n = 0; n < all.length(); n++)

@@ -207,7 +207,14 @@ public final class TranscriptActivity extends CalmActivity {
             this::stillHeard,
             value -> {
               illustrationSelection = value;
-              rendered = null;
+              if (rendered != null && !rendered.isEmpty()) {
+                SpannableString highlighted = new SpannableString(transcript.getText());
+                for (BackgroundColorSpan old :
+                    highlighted.getSpans(0, highlighted.length(), BackgroundColorSpan.class))
+                  highlighted.removeSpan(old);
+                applyIllustrationHighlights(highlighted);
+                transcript.setText(highlighted);
+              }
             });
     body.addView(illustrations.view);
     gap(body, 18);
@@ -515,21 +522,7 @@ public final class TranscriptActivity extends CalmActivity {
             last.from,
             last.to,
             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        try {
-          for (int n = 0; n < illustrationSelection.length(); n++) {
-            JSONObject chosen = illustrationSelection.getJSONObject(n);
-            if (chosen.getInt("chapter") != chapter) continue;
-            for (Line line : lines)
-              if (line.cue.startMs() == chosen.getLong("startMs")
-                  && line.cue.endMs() == chosen.getLong("endMs"))
-                styled.setSpan(
-                    new BackgroundColorSpan(AccentPalette.soft(this)),
-                    line.from,
-                    line.to,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-          }
-        } catch (JSONException ignored) {
-        }
+        applyIllustrationHighlights(styled);
         transcript.setText(styled);
       }
     }
@@ -540,6 +533,24 @@ public final class TranscriptActivity extends CalmActivity {
     if (displayedEvidence != null && !stillHeard(displayedEvidence)) {
       displayedEvidence = null;
       result.setText("The previous answer is hidden because you moved before its source passage.");
+    }
+  }
+
+  private void applyIllustrationHighlights(SpannableString styled) {
+    try {
+      for (int n = 0; n < illustrationSelection.length(); n++) {
+        JSONObject chosen = illustrationSelection.getJSONObject(n);
+        if (chosen.getInt("chapter") != chapter) continue;
+        for (Line line : lines)
+          if (line.cue.startMs() == chosen.getLong("startMs")
+              && line.cue.endMs() == chosen.getLong("endMs"))
+            styled.setSpan(
+                new BackgroundColorSpan(AccentPalette.soft(this)),
+                line.from,
+                line.to,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+      }
+    } catch (JSONException ignored) {
     }
   }
 
@@ -571,7 +582,7 @@ public final class TranscriptActivity extends CalmActivity {
     JSONArray selected = new JSONArray();
     int a = Math.min(transcript.getSelectionStart(), transcript.getSelectionEnd()),
         b = Math.max(transcript.getSelectionStart(), transcript.getSelectionEnd());
-    if (a < 0 || b <= a || rendered.isEmpty()) return selected;
+    if (a < 0 || b <= a || rendered == null || rendered.isEmpty()) return selected;
     try {
       for (Line line : lines) {
         int start = Math.max(a, line.from), end = Math.min(b, line.to);
@@ -1155,7 +1166,7 @@ public final class TranscriptActivity extends CalmActivity {
           JSONObject meta =
               new JSONObject(
                   new String(
-                      TranscriptStore.read(new FileInputStream(file), 20000),
+                      TranscriptStore.read(new FileInputStream(file), 200000),
                       StandardCharsets.UTF_8));
           if (!meta.optString("book").equals(book.id)) continue;
           JSONArray cues = meta.getJSONArray("cues");
