@@ -42,6 +42,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
         public void run() {
           if (alive) {
             refresh();
+            if (SystemClock.elapsedRealtime() - lastUsageFetch > 60000) refreshUsage();
             handler.postDelayed(this, 1500);
           }
         }

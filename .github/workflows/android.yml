@@ -39,6 +39,8 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          ram-size: 2048M
+          heap-size: 256M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
           script: |
@@ -55,6 +57,12 @@ jobs:
             adb pull /sdcard/morrow-transcript.png app/build/reports/device-screenshots/transcript.png
             adb pull /sdcard/morrow-chapter-summaries.png app/build/reports/device-screenshots/chapter-summaries.png
             adb pull /sdcard/morrow-recap-sheet.png app/build/reports/device-screenshots/recap-sheet.png
+      - name: Capture emulator host diagnostics on failure
+        if: failure()
+        run: |
+          mkdir -p app/build/reports/device-screenshots
+          free -m > app/build/reports/device-screenshots/host-memory.txt
+          sudo dmesg | tail -100 >> app/build/reports/device-screenshots/host-memory.txt
       - uses: actions/upload-artifact@v4
         with:
           name: Narrumo-APK

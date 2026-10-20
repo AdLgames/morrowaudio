@@ -179,6 +179,7 @@ public class PlaybackIntegrationTest {
         10000);
     // No AI connection is needed: the home shortcut opens the saved prior chapter directly.
     instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+    instrumentation.waitForIdleSync();
     instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
     await(
         instrumentation,
