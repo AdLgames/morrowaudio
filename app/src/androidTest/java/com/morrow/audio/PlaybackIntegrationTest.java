@@ -169,14 +169,22 @@ public class PlaybackIntegrationTest {
             findDescription(
                     activity.getWindow().getDecorView(), "Catch up on the last completed chapter")
                 .performClick());
-    await(
-        instrumentation,
-        () -> {
-          var active = instrumentation.getUiAutomation().getRootInActiveWindow();
-          return active != null
-              && !active.findAccessibilityNodeInfosByText("Back to the story").isEmpty();
-        },
-        10000);
+    android.util.Log.i(
+        "NarrumoPlaybackTest",
+        "Home shortcut opened; waiting for the saved recap off the UI thread");
+    long recapDeadline = SystemClock.elapsedRealtime() + 10000;
+    boolean recapVisible = false;
+    while (SystemClock.elapsedRealtime() < recapDeadline) {
+      var active = instrumentation.getUiAutomation().getRootInActiveWindow();
+      if (active != null
+          && !active.findAccessibilityNodeInfosByText("Back to the story").isEmpty()) {
+        recapVisible = true;
+        break;
+      }
+      SystemClock.sleep(100);
+    }
+    assertTrue("One tap should open the saved last-chapter recap", recapVisible);
+    android.util.Log.i("NarrumoPlaybackTest", "Saved recap verified; returning to Library");
     // No AI connection is needed: the home shortcut opens the saved prior chapter directly.
     instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
     instrumentation.waitForIdleSync();
@@ -185,6 +193,7 @@ public class PlaybackIntegrationTest {
         instrumentation,
         () -> containsText(activity.getWindow().getDecorView(), "A little escape."),
         10000);
+    android.util.Log.i("NarrumoPlaybackTest", "Library resumed; opening player again");
     instrumentation.runOnMainSync(
         () -> assertTrue(tap(activity.getWindow().getDecorView(), "Test Book")));
     instrumentation.runOnMainSync(
