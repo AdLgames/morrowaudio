@@ -68,6 +68,12 @@ final class RecapDialog {
       sheet.action("Close", false, () -> {});
     }
     Dialog dialog = sheet.show();
+    protect(activity, dialog, book, chapter);
+    return dialog;
+  }
+
+  static void protect(Activity activity, Dialog dialog, Library.Book book, int chapter) {
+    String identity = ChapterSummaryStore.key(book, book.chapters.get(chapter));
     Handler handler = new Handler(Looper.getMainLooper());
     Runnable guard =
         new Runnable() {
@@ -88,6 +94,5 @@ final class RecapDialog {
         };
     dialog.setOnDismissListener(d -> handler.removeCallbacksAndMessages(null));
     handler.postDelayed(guard, 500);
-    return dialog;
   }
 }

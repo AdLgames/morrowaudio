@@ -22,11 +22,15 @@ public final class ChapterSummariesActivity extends CalmActivity {
   private LinearLayout savedCards;
   private TextView allowance, allowanceNote, sceneAllowance, progress, start, resume, pause, empty;
   private ProgressBar meter;
+  private TextView recapTab, sceneTab;
+  private int scenePage;
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService io = Executors.newSingleThreadExecutor();
+  private final ExecutorService usageIo = Executors.newSingleThreadExecutor();
   private final CompanionClient client = new CompanionClient(this);
   private int chapter, revision;
   private boolean alive = true, loading, usageLoading, scenes, updatingPicker;
+  private long lastUsageFetch;
   private String rendered = "", pendingOpen = "", lastQueue = "";
   private JSONObject usage;
   private Dialog sheet;
@@ -130,8 +134,8 @@ public final class ChapterSummariesActivity extends CalmActivity {
     body.addView(pause);
     gap(body, 24);
     LinearLayout tabs = row();
-    TextView recaps = button("Saved recaps", !scenes, () -> switchTab(false));
-    TextView images = button("Graphic scenes", scenes, () -> switchTab(true));
+    TextView recaps = recapTab = button("Saved recaps", !scenes, () -> switchTab(false));
+    TextView images = sceneTab = button("Graphic scenes", scenes, () -> switchTab(true));
     tabs.addView(recaps, new LinearLayout.LayoutParams(0, -2, 1));
     tabs.addView(images, new LinearLayout.LayoutParams(0, -2, 1));
     body.addView(tabs);
@@ -257,7 +261,8 @@ public final class ChapterSummariesActivity extends CalmActivity {
   private void refreshUsage() {
     if (!alive || usageLoading) return;
     usageLoading = true;
-    io.execute(
+    lastUsageFetch = SystemClock.elapsedRealtime();
+    usageIo.execute(
         () -> {
           try {
             JSONObject reply = ChapterAllowance.fetch(this, client);
@@ -325,6 +330,13 @@ public final class ChapterSummariesActivity extends CalmActivity {
 
   private void switchTab(boolean showScenes) {
     scenes = showScenes;
+    if (recapTab != null) {
+      recapTab.setBackground(bg(scenes ? SOFT : SAGE, 18));
+      recapTab.setTextColor(scenes ? SAGE : BG);
+      sceneTab.setBackground(bg(scenes ? SAGE : SOFT, 18));
+      sceneTab.setTextColor(scenes ? BG : SAGE);
+    }
+    scenePage = 0;
     revision++;
     rendered = "";
     refresh();
@@ -347,7 +359,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
               JSONObject value = store.summary(target, target.chapters.get(n));
               if (value == null) continue;
               List<ChapterScenes.Scene> pages =
-                  showScenes ? ChapterScenes.list(this, target, n) : List.of();
+                  showScenes && n == chosen ? ChapterScenes.list(this, target, n) : List.of();
               saved.add(new Saved(n, value, pages));
               signature.append(n).append(value);
               for (var p : pages) signature.append(p.image().getName());
@@ -436,7 +448,11 @@ public final class ChapterSummariesActivity extends CalmActivity {
     for (Saved s : saved) {
       if (!available(target, s.chapter())) continue;
       if (showScenes) {
-        for (var scene : s.scenes()) {
+        if (s.chapter() != chapter) continue;
+        int total = s.scenes().size();
+        scenePage = Math.max(0, Math.min(scenePage, Math.max(0, (total - 1) / 12)));
+        int end = Math.min(total, (scenePage + 1) * 12);
+        for (var scene : s.scenes().subList(scenePage * 12, end)) {
           count++;
           LinearLayout card = col();
           pad(card, 16, 16);
@@ -449,6 +465,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
           image.setImageBitmap(BitmapFactory.decodeFile(scene.image().getAbsolutePath(), options));
           image.setAdjustViewBounds(true);
           image.setContentDescription("Graphic scene for chapter " + (s.chapter() + 1));
+          image.setOnClickListener(v -> openScene(target, s.chapter(), scene));
           card.addView(image, new LinearLayout.LayoutParams(-1, d(220)));
           gap(card, 10);
           card.addView(text(scene.label(), 13, INK));
@@ -457,6 +474,32 @@ public final class ChapterSummariesActivity extends CalmActivity {
               button("Read this chapter’s recap", false, () -> openRecap(target, s.chapter())));
           savedCards.addView(card);
           gap(savedCards, 14);
+        }
+        if (scenePage > 0) {
+          savedCards.addView(
+              button(
+                  "Previous scenes",
+                  false,
+                  () -> {
+                    scenePage--;
+                    revision++;
+                    rendered = "";
+                    refresh();
+                  }));
+          gap(savedCards, 10);
+        }
+        if (end < total) {
+          savedCards.addView(
+              button(
+                  "More scenes",
+                  false,
+                  () -> {
+                    scenePage++;
+                    revision++;
+                    rendered = "";
+                    refresh();
+                  }));
+          gap(savedCards, 10);
         }
       } else {
         count++;
@@ -486,7 +529,8 @@ public final class ChapterSummariesActivity extends CalmActivity {
               showScenes
                   ? "A moment, illustrated.\n\n"
                       + "Choose a saved chapter recap, then Illustrate a passage. Its"
-                      + " graphic-novel pages will be kept here beside the chapter."
+                      + " graphic-novel pages will be kept here beside the chapter. Older pages"
+                      + " are also available in Read along."
                   : "Your chapter memories will live here.\n\n"
                       + "Choose a completed chapter above to make your first recap.",
               15,
@@ -495,6 +539,24 @@ public final class ChapterSummariesActivity extends CalmActivity {
       pad(none, 12, 20);
       savedCards.addView(none);
     }
+  }
+
+  private void openScene(Library.Book target, int index, ChapterScenes.Scene scene) {
+    if (!available(target, index)) return;
+    CalmSheet image =
+        new CalmSheet(this, "Chapter " + (index + 1), "A moment, illustrated", target.title);
+    ImageView full = new ImageView(this);
+    full.setAdjustViewBounds(true);
+    full.setImageBitmap(BitmapFactory.decodeFile(scene.image().getAbsolutePath()));
+    full.setContentDescription("Saved graphic-novel scene");
+    image.content.addView(full, new LinearLayout.LayoutParams(-1, -2));
+    image.space(14);
+    image.text("An AI interpretation of this chapter’s selected passage.", 12, MUTED);
+    image.space(18);
+    image.action("Read chapter recap", false, () -> openRecap(target, index));
+    image.action("Close", false, () -> {});
+    sheet = image.show();
+    RecapDialog.protect(this, sheet, target, index);
   }
 
   private void openRecap(Library.Book target, int index) {
@@ -802,12 +864,20 @@ public final class ChapterSummariesActivity extends CalmActivity {
   @Override
   protected void onResume() {
     super.onResume();
+    handler.removeCallbacks(tick);
+    handler.postDelayed(tick, 1500);
     if (savedCards != null) {
       revision++;
       rendered = "";
       refresh();
       refreshUsage();
     }
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    handler.removeCallbacks(tick);
   }
 
   @Override
@@ -826,6 +896,7 @@ public final class ChapterSummariesActivity extends CalmActivity {
     if (sheet != null) sheet.dismiss();
     client.cancel();
     io.shutdownNow();
+    usageIo.shutdownNow();
     super.onDestroy();
   }
 }
