@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# The suite uses mock AI responses and loopback torrent peers. Keep the Google APIs
+# image offline so first-boot Play Services downloads do not compete with native speech.
+adb shell cmd connectivity airplane-mode enable
+adb shell svc wifi disable
+adb shell svc data disable
 pull_screens() {
   set +e
   mkdir -p app/build/reports/device-screenshots
