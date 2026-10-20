@@ -51,7 +51,7 @@ public final class BackupActivity extends CalmActivity {
                         .setType("application/zip")
                         .putExtra(
                             Intent.EXTRA_TITLE,
-                            "Morrow-"
+                            "Narrumo-"
                                 + new SimpleDateFormat("yyyy-MM-dd-HHmm", Locale.US)
                                     .format(new Date())
                                 + ".morrow.zip"),
@@ -82,7 +82,7 @@ public final class BackupActivity extends CalmActivity {
     body.addView(button("Reconnect an audio folder", false, this::chooseSource));
     gap(body, 28);
     note(
-        "Restoring updates matching books and keeps other books already in Morrow. Existing"
+        "Restoring updates matching books and keeps other books already in Narrumo. Existing"
             + " listening progress for matching books is replaced by the backup. Torrent transfers"
             + " and raw audio files are not included.");
   }

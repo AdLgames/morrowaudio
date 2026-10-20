@@ -186,7 +186,7 @@ public final class TranscriptActivity extends CalmActivity {
                   new Intent(Intent.ACTION_CREATE_DOCUMENT)
                       .setType("application/x-subrip")
                       .addCategory(Intent.CATEGORY_OPENABLE)
-                      .putExtra(Intent.EXTRA_TITLE, "Morrow-chapter-" + (chapter + 1) + ".srt"),
+                      .putExtra(Intent.EXTRA_TITLE, "Narrumo-chapter-" + (chapter + 1) + ".srt"),
                   72);
             }));
     gap(body, 12);
@@ -612,7 +612,7 @@ public final class TranscriptActivity extends CalmActivity {
                 + Library.clock(stop)
                 + ", will be decoded and uploaded to your private server and OpenAI. This incurs"
                 + " transcription charges and uses the 30-minute daily server allowance. Audio is"
-                + " not retained by Morrow’s server. Keep this screen open until finished.")
+                + " not retained by Narrumo’s server. Keep this screen open until finished.")
         .setPositiveButton(
             "Send audio clip",
             (dialog, which) -> {
@@ -737,7 +737,7 @@ public final class TranscriptActivity extends CalmActivity {
                       new Intent(Intent.ACTION_CREATE_DOCUMENT)
                           .setType("image/jpeg")
                           .addCategory(Intent.CATEGORY_OPENABLE)
-                          .putExtra(Intent.EXTRA_TITLE, "Morrow-comic.jpg"),
+                          .putExtra(Intent.EXTRA_TITLE, "Narrumo-comic.jpg"),
                       73);
                 })
             .setNegativeButton("Close", null)

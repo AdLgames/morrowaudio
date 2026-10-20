@@ -185,7 +185,7 @@ public final class DownloadsActivity extends Activity {
     root.addView(scroll, new LinearLayout.LayoutParams(-1, -1));
     LinearLayout top = row();
     top.addView(icon("back", this::finish));
-    TextView heading = text("M O R R O W", 10, SAGE);
+    TextView heading = text("N A R R U M O", 10, SAGE);
     top.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
     top.addView(icon("plus", this::addMenu));
     body.addView(top);

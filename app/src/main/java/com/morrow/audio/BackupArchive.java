@@ -213,12 +213,12 @@ final class BackupArchive {
         }
       }
       File manifestFile = new File(staging, "manifest.json");
-      if (!manifestFile.isFile()) throw new IOException("This is not a Morrow backup");
+      if (!manifestFile.isFile()) throw new IOException("This is not a Narrumo backup");
       JSONObject manifest =
           new JSONObject(
               new String(Files.readAllBytes(manifestFile.toPath()), StandardCharsets.UTF_8));
       if (!manifest.optString("format").equals("morrow-backup") || manifest.optInt("version") != 1)
-        throw new IOException("Unsupported Morrow backup version");
+        throw new IOException("Unsupported Narrumo backup version");
       JSONArray entries = manifest.getJSONArray("books");
       if (entries.length() > 5000) throw new IOException("This backup contains too many books");
       List<Library.Book> books = new ArrayList<>();

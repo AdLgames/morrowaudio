@@ -198,7 +198,7 @@ public final class MainActivity extends Activity {
             renderMini();
             updatePlayer();
           } catch (Exception e) {
-            toast("Playback could not connect. Reopen Morrow to retry.");
+            toast("Playback could not connect. Reopen Narrumo to retry.");
           }
         },
         ContextCompat.getMainExecutor(this));
@@ -356,7 +356,7 @@ public final class MainActivity extends Activity {
     IconView i = icon("book", SAGE, null);
     i.setLayoutParams(new LinearLayout.LayoutParams(d(28), d(30)));
     r.addView(i);
-    TextView t = label("  M O R R O W   A U D I O");
+    TextView t = label("  N A R R U M O");
     t.setTextColor(SAGE);
     weight(r, t);
     parent.addView(r);
@@ -367,7 +367,7 @@ public final class MainActivity extends Activity {
     IconView logo = icon("book", SAGE, null);
     logo.setLayoutParams(new LinearLayout.LayoutParams(d(30), d(40)));
     top.addView(logo);
-    TextView word = label("  M O R R O W");
+    TextView word = label("  N A R R U M O");
     word.setTextColor(SAGE);
     weight(top, word);
     top.addView(
@@ -1310,7 +1310,7 @@ public final class MainActivity extends Activity {
         "Play, pause, rewind & forward from your home screen",
         () -> {
           if (!MorrowWidget.pin(this))
-            toast("Long-press your home screen, choose Widgets, then Morrow Audio.");
+            toast("Long-press your home screen, choose Widgets, then Narrumo.");
         });
     setting(
         "Backup & restore",
@@ -1324,7 +1324,7 @@ public final class MainActivity extends Activity {
     gap(card, 12);
     TextView privacy =
         text(
-            "Your library plays from your phone. No account, server, or subscription. Morrow"
+            "Your library plays from your phone. No account, server, or subscription. Narrumo"
                 + " remembers progress and bookmarks on this device.\n\n"
                 + "Cover search sends only your search words to Open Library. Chosen covers are"
                 + " saved for offline use. File access is limited to the files and folders you"
@@ -1349,7 +1349,7 @@ public final class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                 .setTitle("Open-source software")
                 .setMessage(
-                    "Morrow Audio uses AndroidX Core, DocumentFile and Media3 (Apache License 2.0),"
+                    "Narrumo uses AndroidX Core, DocumentFile and Media3 (Apache License 2.0),"
                         + " and their transitive dependencies.\n\n"
                         + "Copyright The Android Open Source Project.\n"
                         + "https://www.apache.org/licenses/LICENSE-2.0\n\n"
@@ -1357,7 +1357,7 @@ public final class MainActivity extends Activity {
                         + " their respective rights holders.\n\n"
                         + "Torrent downloads use libtorrent4j (MIT) and libtorrent (BSD), with"
                         + " their native dependencies. Full notices are included below.\n\n"
-                        + "Original placeholder artwork is drawn locally by Morrow.")
+                        + "Original placeholder artwork is drawn locally by Narrumo.")
                 .setPositiveButton("Close", null)
                 .setNeutralButton(
                     "Full notices",
@@ -1446,8 +1446,8 @@ public final class MainActivity extends Activity {
                   new AlertDialog.Builder(this)
                       .setTitle("Remove this book?")
                       .setMessage(
-                          "The book and bookmarks will leave Morrow. Your original audio files will"
-                              + " stay on your phone.")
+                          "The book and bookmarks will leave Narrumo. Your original audio files"
+                              + " will stay on your phone.")
                       .setPositiveButton(
                           "Remove",
                           (a, w) -> {

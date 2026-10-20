@@ -325,7 +325,7 @@ public final class TorrentService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     return new NotificationCompat.Builder(this, CHANNEL)
         .setSmallIcon(android.R.drawable.stat_sys_download)
-        .setContentTitle("Morrow Audio downloads")
+        .setContentTitle("Narrumo downloads")
         .setContentText(message)
         .setContentIntent(open)
         .setOnlyAlertOnce(true)

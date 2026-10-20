@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <application android:theme="@style/AppTheme" android:label="Morrow Audio" android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:usesCleartextTraffic="false">
+    <application android:theme="@style/AppTheme" android:label="Narrumo" android:icon="@drawable/ic_launcher" android:roundIcon="@drawable/ic_launcher" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
         </activity>
@@ -17,7 +17,7 @@
         <activity android:name=".AppearanceActivity" android:exported="false" />
         <activity android:name=".SoundActivity" android:exported="false" />
         <activity android:name=".BackupActivity" android:exported="false" />
-        <receiver android:name=".MorrowWidget" android:exported="false" android:label="Morrow Audio"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/morrow_widget_info" /></receiver>
+        <receiver android:name=".MorrowWidget" android:exported="false" android:label="Narrumo"><intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter><meta-data android:name="android.appwidget.provider" android:resource="@xml/morrow_widget_info" /></receiver>
         <activity android:name=".NoticesActivity" android:exported="false" />
         <service android:name=".TorrentService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name=".PlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true">

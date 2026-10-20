@@ -18,7 +18,7 @@ public final class TorrentExporter {
     DocumentFile folder;
     if (d.savedUri.isEmpty()) {
       String name = TorrentPaths.safeName(d.name);
-      if (parent.findFile(name) != null) name += " (Morrow " + d.id.substring(0, 6) + ")";
+      if (parent.findFile(name) != null) name += " (Narrumo " + d.id.substring(0, 6) + ")";
       folder = parent.createDirectory(name);
       if (folder == null)
         throw new IOException("Could not create a folder in the selected location");

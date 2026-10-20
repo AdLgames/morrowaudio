@@ -1,4 +1,6 @@
-# Morrow AI reading lab — private test backend
+# Narrumo AI reading lab — private test backend
+
+Narrumo is the new name for Morrow Audio. Keep the existing `morrow-ai-trial` Worker, `MORROW_TRIAL_TOKEN` secret and saved server URL when upgrading; these identifiers stay unchanged for compatibility. No new connection or API key is needed for the rename.
 
 This is a real OpenAI Responses API integration, not a ChatGPT website wrapper. Android 1.4.0 adds a timestamped read-along screen, concise progress recaps, and graphic-novel pages from selected passages. The older passage-only reading lab remains available. No request runs automatically, and no provider key belongs in the APK.
 
@@ -6,7 +8,7 @@ This is a real OpenAI Responses API integration, not a ChatGPT website wrapper. 
 
 GitHub stores the app/backend code and runs the automated checks. It does not need your OpenAI key to build or test. GitHub Actions is not the live mobile API server. GitHub Models was retired on 30 July 2026: https://docs.github.com/en/github-models.
 
-The runtime here is a Cloudflare Worker with a SQLite-backed Durable Object for a global request allowance. Your existing Morrow distribution website can remain static. A separate Worker provides the private `/ai` URL.
+The runtime here is a Cloudflare Worker with a SQLite-backed Durable Object for a global request allowance. Your existing Narrumo distribution website can remain static. A separate Worker provides the private `/ai` URL.
 
 ## Connect your API account
 
@@ -25,7 +27,7 @@ Enter the OpenAI API key only at the first secret prompt. For the second prompt,
 
 Review `wrangler.jsonc` before deployment. It defaults to `gpt-6.1-sol` (the existing private trial’s configured model); set `OPENAI_MODEL` to an available Responses-compatible model on your account that supports Structured Outputs. The model is selected on the server, not by app users. Review your Cloudflare plan and OpenAI billing before deploying. ChatGPT subscriptions and API billing are separate.
 
-If this is the first Worker under your account, complete any setup prompted by Wrangler for your workers.dev subdomain. It will print a URL such as `https://morrow-ai-trial.YOUR-SUBDOMAIN.workers.dev`. In Morrow → Settings → AI reading lab:
+If this is the first Worker under your account, complete any setup prompted by Wrangler for your workers.dev subdomain. It will print a URL such as `https://morrow-ai-trial.YOUR-SUBDOMAIN.workers.dev`. In Narrumo → Settings → AI reading lab:
 
 1. Set the test-server URL to that URL followed by `/ai`.
 2. Enter the separate `MORROW_TRIAL_TOKEN`, then Save connection.

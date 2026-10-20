@@ -73,7 +73,7 @@ public final class AiTrialActivity extends CalmActivity {
     gap(body, 12);
     body.addView(
         text(
-            "Use your Morrow server’s HTTPS /ai URL and private test access token. Your OpenAI API"
+            "Use your Narrumo server’s HTTPS /ai URL and private test access token. Your OpenAI API"
                 + " key belongs on the server, never in this app.",
             13,
             MUTED));
@@ -82,7 +82,7 @@ public final class AiTrialActivity extends CalmActivity {
     address.setInputType(
         android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
     address.setText(getSharedPreferences("ai_connection", 0).getString("endpoint", ""));
-    token = field("Morrow test access token (not an API key)", 1, 256);
+    token = field("Narrumo test access token (not an API key)", 1, 256);
     token.setInputType(
         android.text.InputType.TYPE_CLASS_TEXT
             | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
@@ -117,11 +117,11 @@ public final class AiTrialActivity extends CalmActivity {
                     new Intent(
                         Intent.ACTION_VIEW,
                         Uri.parse(
-                            "https://github.com/AdLgames/morrowaudio/tree/codex/foundation-ai-trial/ai-backend")));
+                            "https://github.com/AdLgames/morrowaudio/tree/codex/transcripts-recaps-comics/ai-backend")));
               } catch (android.content.ActivityNotFoundException e) {
                 Toast.makeText(
                         this,
-                        "Open the ai-backend folder in the Morrow GitHub repository.",
+                        "Open the ai-backend folder in the Narrumo GitHub repository.",
                         Toast.LENGTH_LONG)
                     .show();
               }
@@ -163,7 +163,7 @@ public final class AiTrialActivity extends CalmActivity {
       String access = token.getText().toString().trim();
       if (access.length() < 24 || access.startsWith("sk-"))
         throw new Exception(
-            "Enter a Morrow test access token of at least 24 characters, not an OpenAI API key.");
+            "Enter a Narrumo test access token of at least 24 characters, not an OpenAI API key.");
       getSharedPreferences("ai_connection", 0)
           .edit()
           .putString("endpoint", address.getText().toString().trim())
@@ -187,7 +187,7 @@ public final class AiTrialActivity extends CalmActivity {
       if (token.getText().toString().trim().length() < 24
           || token.getText().toString().trim().startsWith("sk-"))
         throw new Exception(
-            "Connect your private Morrow test server below. Never enter an OpenAI API key here.");
+            "Connect your private Narrumo test server below. Never enter an OpenAI API key here.");
     } catch (Exception e) {
       Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
       return;
@@ -231,7 +231,7 @@ public final class AiTrialActivity extends CalmActivity {
                           e instanceof java.io.IOException
                               ? "Couldn’t finish: " + e.getMessage()
                               : "The test server returned an unreadable reply. Your passage is"
-                                    + " still here.";
+                                  + " still here.";
                     }
                     final String output = result;
                     handler.post(
