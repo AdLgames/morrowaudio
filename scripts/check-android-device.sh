@@ -4,7 +4,6 @@ set -euo pipefail
 # image offline so first-boot Play Services downloads do not compete with native speech.
 adb shell cmd connectivity airplane-mode enable
 adb shell svc wifi disable
-adb shell svc data disable
 pull_screens() {
   set +e
   mkdir -p app/build/reports/device-screenshots
