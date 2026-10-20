@@ -5,7 +5,6 @@ import android.content.*;
 import android.content.pm.ServiceInfo;
 import android.os.*;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 import java.io.*;
 import java.util.*;
@@ -63,7 +62,10 @@ public final class ChapterSummaryService extends Service {
         Build.VERSION.SDK_INT >= 35
             ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROCESSING
             : Build.VERSION.SDK_INT >= 29 ? ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC : 0;
-    ServiceCompat.startForeground(this, 74, notification(message), type);
+    // Core 1.15's compatibility mask strips Android 15's mediaProcessing bit.
+    // Pass the platform type directly so target-35 apps never start with type NONE.
+    if (Build.VERSION.SDK_INT >= 29) startForeground(74, notification(message), type);
+    else startForeground(74, notification(message));
   }
 
   private Notification notification(String message) {
