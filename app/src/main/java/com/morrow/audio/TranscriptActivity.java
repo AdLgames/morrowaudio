@@ -25,7 +25,11 @@ public final class TranscriptActivity extends CalmActivity {
   private int chapter;
   private TranscriptStore store;
   private TranscriptStore.Data data;
-  private TextView status, transcript, result, chapterButton, generate;
+  private TextView status, transcript, result, chapterButton, generate, cancelLocal;
+  private boolean localTranscribing;
+  private volatile boolean cancelRequested;
+  private volatile Thread jobThread;
+  private String workMessage = "";
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   private CompanionClient client;
@@ -67,7 +71,8 @@ public final class TranscriptActivity extends CalmActivity {
     screen("Between the lines.", "Read along · remember · imagine");
     TextView hint =
         text(
-            "Completed lines appear as you listen. Long-press a passage to recap or illustrate it.",
+            "Completed lines appear as you listen. Transcribe English on this phone for free."
+                + " Long-press text for optional AI recaps or illustrations.",
             13,
             MUTED);
     hint.setLineSpacing(d(3), 1);
@@ -160,8 +165,30 @@ public final class TranscriptActivity extends CalmActivity {
               }
             }));
     gap(body, 12);
-    generate = button("Transcribe the next heard section", false, this::transcribe);
+    generate = button("Transcribe on this phone · free", false, this::transcribe);
+    generate.setContentDescription("Create offline English transcript");
     body.addView(generate);
+    gap(body, 12);
+    body.addView(
+        text(
+            "Offline English · no audio upload or API charges. First use prepares about 71 MB of"
+                + " speech data. Unusual names and accents may need corrections.",
+            13,
+            MUTED));
+    cancelLocal =
+        button(
+            "Cancel transcription",
+            false,
+            () -> {
+              cancelRequested = true;
+              workMessage = "Stopping transcription…";
+              cancelLocal.setEnabled(false);
+              Thread thread = jobThread;
+              if (thread != null) thread.interrupt();
+              render();
+            });
+    cancelLocal.setVisibility(View.GONE);
+    body.addView(cancelLocal);
     gap(body, 12);
     body.addView(
         button(
@@ -203,8 +230,9 @@ public final class TranscriptActivity extends CalmActivity {
     body.addView(result);
     gap(body, 24);
     note(
-        "Private test limits · 20 text requests, 30 minutes of transcription and 3 medium-quality"
-            + " square comic pages per day across the server. A page has four panels. Failed"
+        "Offline transcription has no daily allowance. Optional AI test limits · 20 text requests"
+            + " and 3 medium-quality square comic pages per day across the private server. A page"
+            + " has four panels. Failed"
             + " attempts count. Requests never retry automatically. Transcripts and pages stay on"
             + " this device and are not in library backups; use Export to keep a copy.");
     body.addView(
@@ -322,7 +350,11 @@ public final class TranscriptActivity extends CalmActivity {
             + heard.size()
             + " completed lines · processed timeline through "
             + Library.clock(coverage)
-            + (busy ? "\nWorking… please keep this screen open." : ""));
+            + (busy
+                ? "\n"
+                    + (workMessage.isEmpty() ? "Working…" : workMessage)
+                    + " Please keep this screen open."
+                : ""));
     StringBuilder text = new StringBuilder();
     lines.clear();
     int size = 0, first = heard.size();
@@ -601,67 +633,60 @@ public final class TranscriptActivity extends CalmActivity {
       tell("No new heard audio to transcribe. Listen a little further or choose another chapter.");
       return;
     }
-    new AlertDialog.Builder(this)
-        .setTitle("Transcribe this heard section?")
-        .setMessage(
-            "Only chapter "
-                + (index + 1)
-                + ", "
-                + Library.clock(start)
-                + "–"
-                + Library.clock(stop)
-                + ", will be decoded and uploaded to your private server and OpenAI. This incurs"
-                + " transcription charges and uses the 30-minute daily server allowance. Audio is"
-                + " not retained by Narrumo’s server. Keep this screen open until finished.")
-        .setPositiveButton(
-            "Send audio clip",
-            (dialog, which) -> {
-              if (chapter != index || chapterCutoff() < stop) {
-                tell("Playback moved before this section. Choose it again.");
-                return;
-              }
-              runJob(
-                  () -> {
-                    File clip = null;
-                    try {
-                      Library.Chapter source = book.chapters.get(index);
-                      clip = AudioClipper.extract(this, source, start, stop);
-                      JSONObject reply = client.request("/transcribe", null, clip);
-                      JSONArray values = reply.getJSONArray("cues");
-                      long duration = reply.getLong("durationMs");
-                      if (duration <= 0 || duration > stop - start + 100)
-                        throw new IOException("The server returned an invalid clip duration");
-                      TranscriptStore.Data prior = store.load(book, source);
-                      List<TranscriptTimeline.Cue> cues = new ArrayList<>(prior.cues());
-                      for (int n = 0; n < values.length(); n++) {
-                        JSONObject cue = values.getJSONObject(n);
-                        long a = cue.getLong("startMs"), b = cue.getLong("endMs");
-                        if (a < 0 || b > duration)
-                          throw new IOException("The server returned invalid cue times");
-                        cues.add(
-                            new TranscriptTimeline.Cue(
-                                start + a, start + b, cue.getString("text")));
-                      }
-                      cues.sort(Comparator.comparingLong(TranscriptTimeline.Cue::startMs));
-                      List<TranscriptTimeline.Range> ranges = new ArrayList<>(prior.ranges());
-                      ranges.add(new TranscriptTimeline.Range(start, stop));
-                      store.save(book, source, new TranscriptStore.Data(cues, ranges));
-                      handler.post(
-                          () -> {
-                            if (alive) {
-                              if (chapter == index) loadChapter();
-                              tell(
-                                  "Transcript saved locally. Speech recognition can make"
-                                      + " mistakes.");
-                            }
-                          });
-                    } finally {
-                      if (clip != null) clip.delete();
-                    }
-                  });
-            })
-        .setNegativeButton("Cancel", null)
-        .show();
+    if (chapter != index || chapterCutoff() < stop) {
+      tell("Playback moved before this section. Choose it again.");
+      return;
+    }
+    localTranscribing = true;
+    workMessage = "Preparing heard audio on this phone…";
+    runJob(
+        () -> {
+          File clip = null;
+          try {
+            Library.Chapter source = book.chapters.get(index);
+            clip = AudioClipper.extract(this, source, start, stop);
+            OfflineTranscriber.Result reply =
+                OfflineTranscriber.transcribe(
+                    this,
+                    clip,
+                    message ->
+                        handler.post(
+                            () -> {
+                              if (alive && localTranscribing && !cancelRequested) {
+                                workMessage = message;
+                                render();
+                              }
+                            }));
+            OfflineTranscriber.checkCancelled();
+            if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
+            TranscriptStore.Data prior = store.load(book, source);
+            List<TranscriptTimeline.Cue> cues = new ArrayList<>(prior.cues());
+            for (TranscriptTimeline.Cue cue : reply.cues())
+              cues.add(
+                  new TranscriptTimeline.Cue(
+                      start + cue.startMs(), start + cue.endMs(), cue.text()));
+            cues.sort(Comparator.comparingLong(TranscriptTimeline.Cue::startMs));
+            List<TranscriptTimeline.Range> ranges = new ArrayList<>(prior.ranges());
+            ranges.add(
+                new TranscriptTimeline.Range(start, Math.min(stop, start + reply.durationMs())));
+            OfflineTranscriber.checkCancelled();
+            store.save(book, source, new TranscriptStore.Data(cues, ranges));
+            handler.post(
+                () -> {
+                  if (alive) {
+                    if (chapter == index) loadChapter();
+                    tell(
+                        reply.cues().isEmpty()
+                            ? "No English speech found. This section is marked as processed. You"
+                                  + " can import matching timed text."
+                            : "Offline transcript saved. No audio was uploaded and no API charge"
+                                  + " was made.");
+                  }
+                });
+          } finally {
+            if (clip != null) clip.delete();
+          }
+        });
   }
 
   private interface Job {
@@ -671,26 +696,40 @@ public final class TranscriptActivity extends CalmActivity {
   private void runJob(Job job) {
     if (busy) return;
     busy = true;
+    cancelRequested = false;
+    cancelLocal.setVisibility(localTranscribing ? View.VISIBLE : View.GONE);
+    cancelLocal.setEnabled(true);
     generate.setEnabled(false);
     render();
     io.execute(
         () -> {
+          jobThread = Thread.currentThread();
           try {
+            if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
             job.run();
           } catch (Exception e) {
             handler.post(
                 () -> {
                   if (alive)
                     tell(
-                        e instanceof IOException
-                            ? e.getMessage()
-                            : "Could not complete this request. No automatic retry was made.");
+                        cancelRequested
+                                || e instanceof InterruptedException
+                                || e instanceof InterruptedIOException
+                            ? "Transcription cancelled. Previously saved text is kept."
+                            : e instanceof IOException
+                                ? e.getMessage()
+                                : "Could not complete this request. No automatic retry was made.");
                 });
           } finally {
+            jobThread = null;
+            Thread.interrupted();
             handler.post(
                 () -> {
                   if (alive) {
                     busy = false;
+                    localTranscribing = false;
+                    workMessage = "";
+                    cancelLocal.setVisibility(View.GONE);
                     generate.setEnabled(true);
                     render();
                   }
@@ -871,7 +910,8 @@ public final class TranscriptActivity extends CalmActivity {
   protected void onDestroy() {
     alive = false;
     handler.removeCallbacksAndMessages(null);
-    client.cancel();
+    cancelRequested = true;
+    if (client != null) client.cancel();
     io.shutdownNow();
     if (future != null) MediaController.releaseFuture(future);
     super.onDestroy();

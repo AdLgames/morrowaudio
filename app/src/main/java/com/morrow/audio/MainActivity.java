@@ -720,6 +720,13 @@ public final class MainActivity extends Activity {
     ep.leftMargin = d(10);
     tools.addView(edit, ep);
     body.addView(tools);
+    gap(body, 12);
+    body.addView(
+        button(
+            "Read along · free offline transcript",
+            false,
+            () ->
+                startActivity(new Intent(this, TranscriptActivity.class).putExtra("book", b.id))));
     gap(body, 28);
     if (!b.description.trim().isEmpty()) {
       body.addView(text(b.description, 14, MUTED));

@@ -55,6 +55,14 @@ public final class HelpActivity extends CalmActivity {
             "Open the AI reading lab",
             false,
             () -> startActivity(new Intent(this, AiTrialActivity.class))));
+    section(
+        "Read along for free",
+        "Open a book and choose Read along · free offline transcript. Transcribe already-heard"
+            + " English audio on this phone, up to five minutes per tap. No AI connection, audio"
+            + " upload or API charge is needed. Keep this screen open; Cancel stops unfinished"
+            + " work. The bundled model needs about 71 MB of private storage on first use and uses"
+            + " battery while processing. Import SRT/VTT for an exact transcript. Recaps and"
+            + " illustrations remain optional paid AI actions.");
     gap(body, 24);
     body.addView(button("Read the full listening guide", false, () -> open("/guide.html")));
     gap(body, 16);

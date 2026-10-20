@@ -1,14 +1,22 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.4.1 (build 7) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 1.5.0 (build 8) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
 ## Install on Samsung
 
-Download [`Narrumo.apk`](dist/Narrumo.apk), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
+Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## Offline English transcription (1.5.0)
+
+Read along can now transcribe already-heard audio entirely on the phone, without an AI connection, audio upload, API charge or daily transcription quota. Use **Read along · free offline transcript** on the book details page, or the existing player link, then **Transcribe on this phone · free**. Process up to five minutes per tap, see progress, and cancel without losing saved text. Keep the screen open; leaving cancels unfinished work. Saved text is selectable and exports as SRT. Completed-line and playback-cutoff rules still apply.
+
+The APK bundles Vosk Android 0.3.75 and the small US English 0.15 model (Apache 2.0). It needs about 71 MB of additional private storage on first use and uses device CPU/battery. This is English recognition, not translation; unusual names, accents and punctuation may be less accurate than larger models. Import matching SRT/VTT when you need an exact transcript. Recaps and comics remain separately confirmed, chargeable AI actions using the saved private server connection. There is no automatic cloud fallback.
+
+Builds fetch the fixed model from its original HTTPS publisher, verify SHA-256 `30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498`, cache it, and package it inside the APK. The installed app never downloads a model. Reuse the Gradle cache for builds without network access. Model and native-library notices are included in the app. The larger signed 1.5.0 APKs are distributed from the website; the APKs retained under `dist/` are earlier historical releases.
 
 ## Features
 
@@ -56,7 +64,7 @@ BitTorrent requires available peers and exchanges pieces while active; sharing s
 
 Torrent downloads require Android 9 or newer; local playback supports Android 8.
 
-The main APK is for ARM64 Samsung phones. For a phone running 32-bit Android, use `dist/Narrumo-arm32.apk`. Both use the same signing certificate and version. Build the 32-bit release with `./gradlew -PmorrowArm32 assembleRelease`. Debug builds include ARM64, ARMv7 and x86_64 for emulator checks.
+The main APK is for ARM64 Samsung phones. For a phone running 32-bit Android, choose the ARM32 download on the website. Both use the same signing certificate and version. Build the 32-bit release with `./gradlew -PmorrowArm32 assembleRelease`. Debug builds include ARM64, ARMv7 and x86_64 for emulator checks.
 
 ## Privacy and storage
 
