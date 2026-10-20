@@ -44,7 +44,7 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
+          emulator-options: -no-window -gpu off -no-snapshot -noaudio -no-boot-anim -feature -Vulkan
           script: bash scripts/check-android-device.sh
       - name: Capture emulator host diagnostics on failure
         if: failure()

@@ -118,6 +118,12 @@ public class CarLibraryIntegrationTest {
             browser.seekBack();
             browser.seekForward();
           });
+      i.runOnMainSync(
+          () -> {
+            browser.pause();
+            browser.seekTo(1500);
+          });
+      await(i, () -> book.index == 2 && Math.abs(book.position - 1500) < 150);
       CountDownLatch connected = new CountDownLatch(1);
       AtomicReference<android.media.browse.MediaBrowser> legacy = new AtomicReference<>();
       i.runOnMainSync(

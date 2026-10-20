@@ -93,6 +93,12 @@ public final class PlaybackService extends MediaLibraryService {
           }
 
           @Override
+          public void onPositionDiscontinuity(
+              Player.PositionInfo oldPosition, Player.PositionInfo newPosition, int reason) {
+            persist();
+          }
+
+          @Override
           public void onIsPlayingChanged(boolean playing) {
             persist();
           }
