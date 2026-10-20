@@ -171,6 +171,7 @@ public class PlaybackIntegrationTest {
                 .performClick());
     androidx.test.espresso.Espresso.onView(
             androidx.test.espresso.matcher.ViewMatchers.withText("Back to the story"))
+        .inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog())
         .check(
             androidx.test.espresso.assertion.ViewAssertions.matches(
                 androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));
