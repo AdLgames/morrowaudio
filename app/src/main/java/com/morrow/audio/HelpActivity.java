@@ -63,6 +63,13 @@ public final class HelpActivity extends CalmActivity {
             + " work. The bundled model needs about 71 MB of private storage on first use and uses"
             + " battery while processing. Import SRT/VTT for an exact transcript. Recaps and"
             + " illustrations remain optional paid AI actions.");
+    section(
+        "Unusual names, reviewed once",
+        "Read along → Book words can request a tiny AI spelling and pronunciation guide using the"
+            + " title, author and already-heard text. Review each suggestion before applying it."
+            + " Approved spellings work locally; Show original reverses them and exports keep the"
+            + " original. Up to eight terms share 100 words total. This optional request has a"
+            + " small API charge. Pronunciation hints do not train the offline speech model.");
     gap(body, 24);
     body.addView(button("Read the full listening guide", false, () -> open("/guide.html")));
     gap(body, 16);

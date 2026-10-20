@@ -1,6 +1,6 @@
 # Narrumo AI reading lab — private test backend
 
-Narrumo 1.5.0 performs English transcription entirely on the phone with a bundled Vosk model. It does not call `/transcribe`, need an AI connection for transcripts, or use the server audio allowance. Only explicitly confirmed recaps, questions and comics use this backend. Keep the existing Worker and connection; no deployment change is needed for the offline update. The audio endpoint below remains for older 1.4 clients.
+Narrumo 1.5.0 performs English transcription entirely on the phone with a bundled Vosk model. It does not call `/transcribe`, need an AI connection for transcripts, or use the server audio allowance. Only explicitly confirmed recaps, questions, comics and the optional book word guide use this backend. Keep the existing Worker and connection; the offline-only update needs no deployment change; version 1.6.0 adds the `/vocabulary` route and needs the updated Worker. The audio endpoint below remains for older 1.4 clients.
 
 Narrumo is the new name for Morrow Audio. Keep the existing `morrow-ai-trial` Worker, `MORROW_TRIAL_TOKEN` secret and saved server URL when upgrading; these identifiers stay unchanged for compatibility. No new connection or API key is needed for the rename.
 
@@ -76,3 +76,9 @@ Primary API docs for the new routes:
 - https://developers.openai.com/api/docs/guides/image-generation
 - https://developers.openai.com/api/docs/models/gpt-image-2.5-flare
 - https://developers.cloudflare.com/workers/wrangler/commands/general/
+
+## Book word guide (1.6.0)
+
+`POST /vocabulary` uses the same bearer authentication. Input: `{title, author, cues, cutoff}`. Title ≤180 characters, author ≤120; only completed cues at/before the supplied cutoff are used, with up to 3,000 characters of text. No audio, descriptions, covers, or full library are sent. Output: `{entries:[{heard, spelling, pronunciation}], cached}` with at most 8 terms / 100 whitespace-separated words across all field values, 60 characters per field, and each heard phrase validated against whole words in the supplied text. The model is server-selected, `store:false`, output ≤800 tokens. This is a spelling suggestion for user review; readable pronunciations are not fed into Vosk. No definitions or plot information are requested. AI mistakes and inferred spoilers are still possible.
+
+The existing Durable Object atomically shares the `usage` text counter with recaps/questions (default20 per UTC day). Reserve before the provider; failures count and identical failed attempts cannot retry that day. Concurrent identical requests return409; completed guides reopen without a provider call. Cache keys hash title/author/heard passage and schema version. At most32 small results are held server-side; original passages are not retained in this cache, but returned terms necessarily contain short source phrases. Local per-book caches avoid repeat calls across later audio sections. No new Worker bindings or migrations. Mock-provider tests exercise authentication, heard cutoff, limits, failed attempts, duplicate reservation and cache behaviour without spending API credits.

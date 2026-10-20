@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.5.0 (build 8) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 1.6.0 (build 9) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,14 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## Book words: a tiny reviewed AI guide (1.6.0)
+
+Read along → **Book words · optional AI guide** uses a completed, already-heard excerpt (up to 3,000 characters), title and author to request at most **8 unusual terms within 100 words total**, including readable pronunciation hints. Confirm before sharing text with your private backend and OpenAI; no audio is sent. One successful guide is cached per book/audio identity; reopening and applying approved corrections work offline. It shares the existing 20-request daily server text budget. Input is bounded and provider output capped at 800 tokens; 100 words is not a currency limit. Failed attempts count and are never automatically retried.
+
+Review each proposed “heard phrase → spelling” before selecting it. Only approved exact whole phrases are substituted in the read-along display, within individual cues, without cascading replacements or changing timestamps. **Show original transcript** reverses the display; SRT export always retains the original. Imported text can also receive reviewed display substitutions. The guide hides and stops applying if playback moves before its source excerpt. Delete a guide to discard it; requesting another may use another allowance. Guides are excluded from library/Android backups, scoped to book title/author and audio identity, and invalidated when those change.
+
+**Engine limitation:** Vosk's small model cannot accept new phoneme pronunciations or out-of-dictionary words via its runtime grammar API. This release adds reviewed local spelling correction after recognition, not acoustic training, open-vocabulary decoding or guaranteed recognition improvement. Pronunciation hints are for the listener. Title/author knowledge is requested only to disambiguate terms already in heard text; no plot details or unseen terms are requested. AI can guess wrong or imply unwanted information, so suggestions cannot be guaranteed spoiler-free. Future decoder adaptation needs a different engine or rebuilt lexicon; do not market this version as learning pronunciations.
 
 ## Offline English transcription (1.5.0)
 
