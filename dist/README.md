@@ -1,9 +1,9 @@
 # Narrumo Android downloads
 
-The current signed release is **1.6.0 / build 9**:
+The current signed release is **1.7.0 / build 10**:
 
-- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.6.0) — 55,434,237 bytes
-- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.6.0) — 54,541,315 bytes
+- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.7.0) — 55,446,525 bytes
+- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.7.0) — 54,553,603 bytes
 
 SHA-256 checksum files are retained alongside this document. Both APKs use the
 existing release certificate and install over previous Morrow/Narrumo versions.
