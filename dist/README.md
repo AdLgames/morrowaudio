@@ -1,9 +1,11 @@
 # Narrumo Android downloads
 
-The current signed release is **1.7.0 / build 10**:
+The current signed release is **1.7.1 / build 11**:
 
-- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.7.0) — 55,446,525 bytes
-- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.7.0) — 54,549,507 bytes
+- [ARM64 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm64&version=1.7.1) — 55,446,525 bytes
+- [ARM32 APK](https://morrow-audio.aptnote8.chatgpt.site/download.html?arch=arm32&version=1.7.1) — 54,553,603 bytes
+
+The listening screen now includes a compact Chapter summaries card below play/pause, with quick chapter selection and a saved recap preview. Reading a saved recap makes no AI request.
 
 SHA-256 checksum files are retained alongside this document. Both APKs use the
 existing release certificate and install over previous Morrow/Narrumo versions.
