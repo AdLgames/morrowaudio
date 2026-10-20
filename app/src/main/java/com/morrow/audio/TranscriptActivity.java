@@ -63,7 +63,9 @@ public final class TranscriptActivity extends CalmActivity {
       finish();
       return;
     }
-    chapter = Math.max(0, Math.min(book.index, book.chapters.size() - 1));
+    chapter =
+        Math.max(
+            0, Math.min(getIntent().getIntExtra("chapter", book.index), book.chapters.size() - 1));
     if (state != null)
       chapter = Math.max(0, Math.min(state.getInt("chapter", chapter), book.chapters.size() - 1));
     if (state != null) {
@@ -622,6 +624,13 @@ public final class TranscriptActivity extends CalmActivity {
                                     book.chapters.get(cues.getJSONObject(0).getInt("chapter")).uri)
                                 .put("file", cache.getName())
                                 .put("label", source.substring(0, Math.min(70, source.length())));
+                        JSONArray chapterKeys = new JSONArray();
+                        Set<Integer> linkedChapters = new TreeSet<>();
+                        for (int n = 0; n < cues.length(); n++)
+                          linkedChapters.add(cues.getJSONObject(n).getInt("chapter"));
+                        for (int index : linkedChapters)
+                          chapterKeys.put(ChapterSummaryStore.key(book, book.chapters.get(index)));
+                        meta.put("chapterKeys", chapterKeys);
                         TranscriptStore.write(
                             store.cached(cacheKey, ".page.json"),
                             meta.toString().getBytes(StandardCharsets.UTF_8));

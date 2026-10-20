@@ -41,7 +41,10 @@ final class ChapterSummaryStore {
     validate(result, source);
     TranscriptStore.write(
         summaryFile(new TranscriptStore(context), book, chapter),
-        result.toString().getBytes(StandardCharsets.UTF_8));
+        new JSONObject(result.toString())
+            .put("savedAt", System.currentTimeMillis())
+            .toString()
+            .getBytes(StandardCharsets.UTF_8));
   }
 
   static void validate(JSONObject value, String source) throws Exception {
@@ -121,13 +124,43 @@ final class ChapterSummaryStore {
             || (index == book.index && book.position >= chapter.duration));
   }
 
+  static int lastCompleted(Library.Book book) {
+    if (book.chapters.isEmpty()) return -1;
+    if (book.finished) return book.chapters.size() - 1;
+    int index = Math.min(book.index, book.chapters.size() - 1);
+    return index >= 0 && heard(book, index) ? index : index - 1;
+  }
+
+  JSONArray priorSummaries(Library.Book book, int chapter) throws Exception {
+    List<Integer> indices = new ArrayList<>();
+    for (int n = chapter - 1; n >= 0 && indices.size() < 3; n--)
+      if (heard(book, n) && summary(book, book.chapters.get(n)) != null) indices.add(n);
+    if (chapter > 0
+        && !indices.contains(0)
+        && heard(book, 0)
+        && summary(book, book.chapters.get(0)) != null) indices.add(0);
+    Collections.sort(indices);
+    JSONArray values = new JSONArray();
+    for (int index : indices) {
+      JSONObject saved = summary(book, book.chapters.get(index));
+      if (saved == null) continue;
+      JSONObject next =
+          new JSONObject()
+              .put("chapterIndex", index)
+              .put("overview", saved.getString("overview"))
+              .put("points", saved.getJSONArray("points"));
+      if (values.toString().length() + next.toString().length() + 2 <= 4400) values.put(next);
+    }
+    return values;
+  }
+
   static boolean supported(Library.Chapter chapter) {
     return chapter.duration >= 1000 && chapter.duration <= 21600000;
   }
 
   void select(Library.Book book, List<Integer> selected) throws Exception {
-    if (selected.isEmpty() || selected.size() > 20)
-      throw new IOException("Select between one and twenty completed chapters");
+    if (selected.isEmpty() || selected.size() > 25)
+      throw new IOException("Select between one and twenty-five completed chapters");
     JSONArray jobs = new JSONArray();
     for (int index : selected) {
       Library.Chapter chapter = book.chapters.get(index);
@@ -140,6 +173,7 @@ final class ChapterSummaryStore {
               .put("chapter", index)
               .put("source", chapter.json())
               .put("key", key(book, chapter))
+              .put("formatVersion", 2)
               .put("stage", "queued")
               .put("message", "Waiting")
               .put("attempted", false)

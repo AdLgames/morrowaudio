@@ -154,6 +154,42 @@ public class PlaybackIntegrationTest {
                           activity.getWindow().getDecorView(), "Saved chapter recap preview"))
                   .getText()
                   .toString());
+        });
+    instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
+    await(
+        instrumentation,
+        () ->
+            findDescription(
+                    activity.getWindow().getDecorView(), "Catch up on the last completed chapter")
+                != null,
+        10000);
+    screenshot(instrumentation, ctx, "library");
+    androidx.test.espresso.Espresso.onView(
+            androidx.test.espresso.matcher.ViewMatchers.withContentDescription(
+                "Catch up on the last completed chapter"))
+        .perform(
+            androidx.test.espresso.action.ViewActions.scrollTo(),
+            androidx.test.espresso.action.ViewActions.click());
+    androidx.test.espresso.Espresso.onView(
+            androidx.test.espresso.matcher.ViewMatchers.withText("Back to the story"))
+        .inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog())
+        .check(
+            androidx.test.espresso.assertion.ViewAssertions.matches(
+                androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));
+    // Espresso waits for each window transition, including the dialog and activity underneath.
+    androidx.test.espresso.Espresso.pressBack();
+    androidx.test.espresso.Espresso.pressBack();
+    androidx.test.espresso.Espresso.onView(
+            androidx.test.espresso.matcher.ViewMatchers.withText("A little escape."))
+        .check(
+            androidx.test.espresso.assertion.ViewAssertions.matches(
+                androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));
+    instrumentation.runOnMainSync(
+        () -> assertTrue(tap(activity.getWindow().getDecorView(), "Test Book")));
+    instrumentation.runOnMainSync(
+        () -> assertTrue(tap(activity.getWindow().getDecorView(), "Resume listening")));
+    instrumentation.runOnMainSync(
+        () -> {
           controller.pause();
           controller.seekTo(0, 500);
         });

@@ -41,6 +41,7 @@ public final class MainActivity extends Activity {
   private TextView miniSubtitle, positionLabel, durationLabel, chapterLabel, sleepLabel, speedLabel;
   private SeekBar seek;
   private LinearLayout summaryCard;
+  private Dialog recapDialog;
   private TextView summaryPreview, summaryHint, summaryAction;
   private org.json.JSONObject cachedPlayerSummary;
   private String summaryBookId = "";
@@ -91,11 +92,13 @@ public final class MainActivity extends Activity {
           .registerOnBackInvokedCallback(
               android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
     }
+    openTab(getIntent());
     render();
     connect();
     handler.post(ticker);
     importCompletedDownload(getIntent());
     openWidgetBook(getIntent());
+    openSummaryBook(getIntent());
     if (!lib.loadError.isEmpty())
       new AlertDialog.Builder(this)
           .setTitle("Library needs attention")
@@ -110,6 +113,26 @@ public final class MainActivity extends Activity {
     setIntent(intent);
     importCompletedDownload(intent);
     openWidgetBook(intent);
+    openTab(intent);
+    openSummaryBook(intent);
+  }
+
+  private void openSummaryBook(Intent intent) {
+    String id = intent.getStringExtra("showBook");
+    if (id == null) return;
+    intent.removeExtra("showBook");
+    selected = lib.find(id);
+    if (selected != null)
+      go(currentBook() != null && currentBook().id.equals(id) ? "player" : "detail");
+  }
+
+  private void openTab(Intent intent) {
+    String tab = intent.getStringExtra("tab");
+    if (tab != null && Arrays.asList("library", "bookmarks", "settings").contains(tab)) {
+      intent.removeExtra("tab");
+      screen = tab;
+      if (root != null) render();
+    }
   }
 
   @Override
@@ -484,6 +507,32 @@ public final class MainActivity extends Activity {
             go("detail");
           });
       body.addView(card);
+      gap(body, 10);
+      LinearLayout catchup = row();
+      catchup.setBackground(bg(SOFT, 18));
+      pad(catchup, 14, 10);
+      catchup.setMinimumHeight(d(48));
+      IconView reminder = icon("rewind", SAGE, null);
+      catchup.addView(reminder, new LinearLayout.LayoutParams(d(30), d(30)));
+      LinearLayout words = col();
+      pad(words, 10, 0);
+      TextView prompt = text("Catch up · last chapter", 13, SAGE);
+      prompt.setTypeface(null, Typeface.BOLD);
+      words.addView(prompt);
+      gap(words, 3);
+      int last = lastReachedSummaryChapter(b);
+      words.addView(
+          text(
+              last >= 0
+                  ? "Chapter " + (last + 1) + " · a quick reminder before you return"
+                  : "Ready after your first completed chapter",
+              11,
+              MUTED));
+      weight(catchup, words);
+      catchup.addView(text("›", 20, SAGE));
+      catchup.setContentDescription("Catch up on the last completed chapter");
+      click(catchup, () -> openCatchUp(b, true));
+      body.addView(catchup);
       gap(body, 28);
     }
     LinearLayout heading = row();
@@ -1090,20 +1139,37 @@ public final class MainActivity extends Activity {
       choose.run();
       return;
     }
-    try {
-      StringBuilder message = new StringBuilder(cachedPlayerSummary.getString("overview"));
-      org.json.JSONArray points = cachedPlayerSummary.getJSONArray("points");
-      for (int n = 0; n < points.length(); n++)
-        message.append("\n\n• ").append(points.getString(n));
-      new AlertDialog.Builder(this)
-          .setTitle("Chapter " + (summaryChapter + 1) + " · saved recap")
-          .setMessage(message.toString())
-          .setPositiveButton("Choose chapters", (dialog, which) -> choose.run())
-          .setNegativeButton("Close", null)
-          .show();
-    } catch (Exception e) {
-      choose.run();
+    syncSummaryPosition(book);
+    if (recapDialog != null) recapDialog.dismiss();
+    int recapIndex = summaryChapter;
+    recapDialog =
+        RecapDialog.show(
+            this,
+            book,
+            recapIndex,
+            cachedPlayerSummary,
+            () ->
+                startActivity(
+                    new Intent(this, ChapterSummariesActivity.class)
+                        .putExtra("book", book.id)
+                        .putExtra("chapter", recapIndex)));
+  }
+
+  private void syncSummaryPosition(Library.Book book) {
+    if (player != null && currentBook() != null && currentBook().id.equals(book.id)) {
+      book.index =
+          Math.max(0, Math.min(player.getCurrentMediaItemIndex(), book.chapters.size() - 1));
+      book.position = Math.max(0, player.getCurrentPosition());
+      book.finished = player.getPlaybackState() == Player.STATE_ENDED;
+      lib.save();
     }
+  }
+
+  private void openCatchUp(Library.Book book, boolean quick) {
+    if (book != null) syncSummaryPosition(book);
+    Intent open = new Intent(this, ChapterSummariesActivity.class).putExtra("quickLast", quick);
+    if (book != null) open.putExtra("book", book.id);
+    startActivity(open);
   }
 
   private LinearLayout tool(String label, String symbol, Runnable action) {
@@ -1439,6 +1505,7 @@ public final class MainActivity extends Activity {
         new String[][] {
           {"library", "library", "Library"},
           {"bookmarks", "bookmark", "Bookmarks"},
+          {"recaps", "book", "Catch up"},
           {"settings", "settings", "Settings"}
         }) {
       LinearLayout item = col();
@@ -1451,7 +1518,13 @@ public final class MainActivity extends Activity {
       item.addView(caption);
       pad(item, 0, 6);
       bar.addView(item, new LinearLayout.LayoutParams(0, -2, 1));
-      click(item, () -> go(nav[0]));
+      item.setContentDescription(nav[2] + " tab");
+      click(
+          item,
+          () -> {
+            if (nav[0].equals("recaps")) openCatchUp(null, false);
+            else go(nav[0]);
+          });
     }
     root.addView(bar);
   }
@@ -2186,6 +2259,7 @@ public final class MainActivity extends Activity {
   @Override
   protected void onDestroy() {
     alive = false;
+    if (recapDialog != null) recapDialog.dismiss();
     handler.removeCallbacksAndMessages(null);
     if (controllerFuture != null) MediaController.releaseFuture(controllerFuture);
     io.shutdown();

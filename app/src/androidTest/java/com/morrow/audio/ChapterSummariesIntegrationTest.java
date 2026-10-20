@@ -61,24 +61,122 @@ public class ChapterSummariesIntegrationTest {
     ChapterSummariesActivity activity = open(i, ctx, book);
     try {
       i.waitForIdleSync();
+      await(
+          i,
+          () -> find(activity.getWindow().getDecorView(), "Summary for chapter 1") != null,
+          10000);
       i.runOnMainSync(
           () -> {
-            assertTrue(find(activity.getWindow().getDecorView(), "Select chapter 1").isEnabled());
-            assertFalse(find(activity.getWindow().getDecorView(), "Select chapter 2").isEnabled());
-            TextView summary =
-                (TextView) find(activity.getWindow().getDecorView(), "Summary for chapter 1");
-            assertNotNull(summary);
-            assertTrue(summary.getText().toString().contains("north gate"));
+            Spinner chapters =
+                (Spinner) find(activity.getWindow().getDecorView(), "Choose a chapter");
+            assertEquals(2, chapters.getCount());
+            assertTrue(
+                find(activity.getWindow().getDecorView(), "Summarise chosen chapter").isEnabled());
+            chapters.setSelection(1);
           });
-      // Capture the new chapter workflow with a real Android renderer.
+      await(
+          i,
+          () -> !find(activity.getWindow().getDecorView(), "Summarise chosen chapter").isEnabled(),
+          10000);
+      i.runOnMainSync(
+          () ->
+              ((Spinner) find(activity.getWindow().getDecorView(), "Choose a chapter"))
+                  .setSelection(0));
+      await(
+          i,
+          () -> find(activity.getWindow().getDecorView(), "Summarise chosen chapter").isEnabled(),
+          10000);
       try (ParcelFileDescriptor ignored =
           i.getUiAutomation()
               .executeShellCommand("screencap -p /sdcard/morrow-chapter-summaries.png")) {}
-      i.runOnMainSync(() -> book.index = 0);
-      SystemClock.sleep(1200);
-      i.waitForIdleSync();
+      androidx.test.espresso.Espresso.onView(
+              androidx.test.espresso.matcher.ViewMatchers.withContentDescription(
+                  "Summarise chosen chapter"))
+          .perform(
+              androidx.test.espresso.action.ViewActions.scrollTo(),
+              androidx.test.espresso.action.ViewActions.click());
+      androidx.test.espresso.Espresso.onView(
+              androidx.test.espresso.matcher.ViewMatchers.withText("Back to the story"))
+          .inRoot(androidx.test.espresso.matcher.RootMatchers.isDialog())
+          .check(
+              androidx.test.espresso.assertion.ViewAssertions.matches(
+                  androidx.test.espresso.matcher.ViewMatchers.isDisplayed()));
+      try (ParcelFileDescriptor ignored =
+          i.getUiAutomation().executeShellCommand("screencap -p /sdcard/morrow-recap-sheet.png")) {}
+      // Closing the styled sheet reopens the local cached recap without an AI connection.
+      androidx.test.espresso.Espresso.pressBack();
+      if (Build.VERSION.SDK_INT >= 33) {
+        try (ParcelFileDescriptor grant =
+                i.getUiAutomation()
+                    .executeShellCommand(
+                        "pm grant com.morrow.audio android.permission.POST_NOTIFICATIONS");
+            InputStream stream = new ParcelFileDescriptor.AutoCloseInputStream(grant)) {
+          while (stream.read() != -1) {}
+        }
+      }
+      RecapNotifications.ready(ctx, book, 0, summary());
+      await(
+          i,
+          () ->
+              Arrays.stream(
+                      ctx.getSystemService(android.app.NotificationManager.class)
+                          .getActiveNotifications())
+                  .anyMatch(
+                      n ->
+                          n.getId() == 76
+                              && n.getNotification().visibility
+                                  == android.app.Notification.VISIBILITY_PRIVATE),
+          10000);
+      // Pages link to an exact source identity; another chapter cannot borrow that scene.
+      File image = transcripts.cached("chapter-scene-fixture", ".jpg");
+      android.graphics.Bitmap bitmap =
+          android.graphics.Bitmap.createBitmap(16, 16, android.graphics.Bitmap.Config.ARGB_8888);
+      try (OutputStream out = new FileOutputStream(image)) {
+        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out);
+      } finally {
+        bitmap.recycle();
+      }
+      File meta = transcripts.cached("chapter-scene-fixture", ".page.json");
+      JSONObject page =
+          new JSONObject()
+              .put("book", book.id)
+              .put("file", image.getName())
+              .put("label", "At the north gate")
+              .put(
+                  "chapterKeys",
+                  new JSONArray().put(ChapterSummaryStore.key(book, book.chapters.get(0))))
+              .put(
+                  "cues",
+                  new JSONArray()
+                      .put(
+                          new JSONObject().put("chapter", 0).put("startMs", 0).put("endMs", 1000)));
+      TranscriptStore.write(
+          meta, page.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      try {
+        assertEquals(1, ChapterScenes.list(ctx, book, 0).size());
+        assertTrue(ChapterScenes.list(ctx, book, 1).isEmpty());
+        page.put("chapterKeys", new JSONArray().put("wrong-source"));
+        TranscriptStore.write(
+            meta, page.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertTrue(ChapterScenes.list(ctx, book, 0).isEmpty());
+      } finally {
+        image.delete();
+        meta.delete();
+      }
       i.runOnMainSync(
-          () -> assertNull(find(activity.getWindow().getDecorView(), "Summary for chapter 1")));
+          () -> {
+            book.index = 0;
+            RecapNotifications.hideIfUnheard(ctx);
+          });
+      await(
+          i,
+          () -> find(activity.getWindow().getDecorView(), "Summary for chapter 1") == null,
+          10000);
+      assertFalse(
+          Arrays.stream(
+                  ctx.getSystemService(android.app.NotificationManager.class)
+                      .getActiveNotifications())
+              .anyMatch(n -> n.getId() == 76));
       transcripts.save(
           book,
           book.chapters.get(0),
@@ -224,6 +322,18 @@ public class ChapterSummariesIntegrationTest {
       if (prior == null) queueFile.delete();
       else TranscriptStore.write(queueFile, prior);
     }
+  }
+
+  private static void await(
+      Instrumentation i, java.util.concurrent.Callable<Boolean> condition, long timeout)
+      throws Exception {
+    long deadline = SystemClock.elapsedRealtime() + timeout;
+    while (SystemClock.elapsedRealtime() < deadline) {
+      i.waitForIdleSync();
+      if (condition.call()) return;
+      SystemClock.sleep(100);
+    }
+    assertTrue("Expected chapter UI state", condition.call());
   }
 
   private static View find(View view, String description) {

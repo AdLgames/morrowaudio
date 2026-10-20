@@ -33,26 +33,54 @@ test('concurrent duplicate chapter requests reserve once and saved summaries reo
  const invoke=async()=>{calls++;await gate;return reply();};const first=handleRequest(request(body()),env,invoke);
  while(!calls)await new Promise(r=>setTimeout(r,1));
  assert.equal((await handleRequest(request(body()),env,invoke)).status,409);release();assert.equal((await first).status,200);
- const cached=await handleRequest(request(body()),env,invoke);assert.equal(cached.status,200);assert.equal((await cached.json()).cached,true);assert.equal(calls,1);assert.equal(env.data.get('usage').count,1);
+ const cached=await handleRequest(request(body()),env,invoke);assert.equal(cached.status,200);assert.equal((await cached.json()).cached,true);assert.equal(calls,1);assert.equal(env.data.get('chapter-usage').count,1);
 });
 test('lookup after interrupted work never reserves, regenerates or charges, even if cache was lost',async()=>{
  const env=config();let calls=0;const invoke=async()=>{calls++;return reply();};
- assert.equal((await handleRequest(request({...body(),lookupOnly:true}),env,invoke)).status,404);assert.equal(env.data.get('usage'),undefined);
+ assert.equal((await handleRequest(request({...body(),lookupOnly:true}),env,invoke)).status,404);assert.equal(env.data.get('chapter-usage'),undefined);
  assert.equal((await handleRequest(request(body()),env,invoke)).status,200);
  assert.equal((await handleRequest(request({...body(),lookupOnly:true}),env,invoke)).status,200);assert.equal(calls,1);
 });
-test('failed and invalid evidence attempts count once and share the existing text quota',async()=>{
+test('failed attempts count once toward the separate chapter quota',async()=>{
  const env=config();let calls=0;
  const invoke=async()=>{calls++;return reply({...result,quotes:['Invented future event']});};
  assert.equal((await handleRequest(request(body()),env,invoke)).status,502);
  assert.equal((await handleRequest(request(body()),env,invoke)).status,429);
  assert.equal((await handleRequest(request({...body(),lookupOnly:true}),env,invoke)).status,502);
- assert.equal(calls,1);assert.equal(env.data.get('usage').count,1);
- for(let n=0;n<19;n++)assert.equal((await env.object.fetch(new Request('https://budget/reserve',{method:'POST'}))).status,200);
+ assert.equal(calls,1);assert.equal(env.data.get('chapter-usage').count,1);
+ for(let n=0;n<24;n++)assert.equal((await env.object.fetch(new Request('https://budget/chapter-reserve',{method:'POST',body:JSON.stringify({key:(n+2).toString(16).padStart(64,'0')})}))).status,202);
  const next=body();next.chapterKey='b'.repeat(64);assert.equal((await handleRequest(request(next),env,invoke)).status,429);assert.equal(calls,1);
 });
 test('summary word count, key points, exact evidence and provider completion are checked',async()=>{
  const source=chapterInput(body()).passage;
  for(const r of [{...result,overview:'word '.repeat(101)},{...result,points:[]},{...result,quotes:[]},{...result,quotes:['Something else']}])assert.throws(()=>validateSummary(r,source));
  assert.equal((await handleRequest(request(body()),config(),async()=>reply(result,'incomplete'))).status,502);
+});
+
+const usageRequest=(auth=token)=>new Request('https://test/chapter-usage',{method:'POST',headers:{Authorization:'Bearer '+auth,'Content-Type':'application/json'},body:'{}'});
+test('25 atomic chapter attempts are separate from other text; reading usage and saved results is free',async()=>{
+ const env=config();let calls=0;const invoke=async()=>{calls++;return reply();};
+ assert.equal((await handleRequest(usageRequest('wrong'),env,invoke)).status,401);
+ let u=await (await handleRequest(usageRequest(),env,invoke)).json();assert.equal(u.remaining,25);assert.equal(u.used,0);assert.equal(u.scope,'shared-server');assert.equal(u.imagesRemaining,3);assert.equal(calls,0);
+ for(let n=0;n<20;n++)assert.equal((await env.object.fetch(new Request('https://budget/reserve',{method:'POST'}))).status,200);
+ const requests=Array.from({length:27},(_,n)=>{const b=body();b.chapterKey=n.toString(16).padStart(64,'0');return handleRequest(request(b),env,invoke);});
+ const responses=await Promise.all(requests);assert.equal(responses.filter(r=>r.status===200).length,25);assert.equal(responses.filter(r=>r.status===429).length,2);assert.equal(calls,25);
+ u=await (await handleRequest(usageRequest(),env,invoke)).json();assert.equal(u.remaining,0);assert.equal(u.used,25);assert.equal(u.resetAt.slice(11),'00:00:00.000Z');
+ const first=body();first.chapterKey='0'.repeat(64);assert.equal((await handleRequest(request(first),env,invoke)).status,200);assert.equal(calls,25);
+ env.data.set('chapter-usage',{day:'2000-01-01',count:25});u=await (await handleRequest(usageRequest(),env,invoke)).json();assert.equal(u.remaining,25);
+});
+test('rich recap prompt includes only bounded earlier chapter context and quotes must be from the current chapter',async()=>{
+ const b=body();b.chapterIndex=2;b.cutoff={chapter:3,positionMs:0};b.formatVersion=2;b.priorSummaries=[{chapterIndex:0,overview:'Mara fled her home in fear.',points:['She wants to return.']}];
+ let payload;const r=await handleRequest(request(b),config(),async(url,options)=>{payload=JSON.parse(options.body);return reply();});assert.equal(r.status,200);
+ const input=JSON.parse(payload.input);assert.deepEqual(input.earlierSavedRecaps,b.priorSummaries);assert.match(payload.instructions,/emotional movement/);assert.match(payload.instructions,/meaningful themes/);assert.match(payload.instructions,/Never use external book knowledge/);assert.match(payload.instructions,/untrusted story data/);
+ assert.throws(()=>validateSummary({...result,quotes:['Mara fled her home in fear.']},chapterInput(b).passage));
+ const env=config();let calls=0;for(const prior of [[{...b.priorSummaries[0],chapterIndex:2}],Array(5).fill(b.priorSummaries[0]),[{...b.priorSummaries[0],overview:'word '.repeat(101)}],[{...b.priorSummaries[0],chapterIndex:1},{...b.priorSummaries[0],chapterIndex:0}]]){
+   assert.equal((await handleRequest(request({...b,priorSummaries:prior}),env,async()=>{calls++;return reply();})).status,400);
+ }assert.equal(calls,0);
+});
+test('versioned context is part of the cache identity; interrupted lookup never changes context or charges',async()=>{
+ const env=config();let calls=0;const invoke=async()=>{calls++;return reply();};const b={...body(),formatVersion:2,priorSummaries:[]};
+ assert.equal((await handleRequest(request(b),env,invoke)).status,200);
+ assert.equal((await handleRequest(request({...b,lookupOnly:true}),env,invoke)).status,200);assert.equal(calls,1);
+ assert.equal((await handleRequest(request({...body(),lookupOnly:true}),env,invoke)).status,404);assert.equal(calls,1);
 });

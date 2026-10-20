@@ -243,6 +243,8 @@ public final class ChapterSummaryService extends Service {
                   .put("endMs", cue.endMs())
                   .put("text", cue.text()));
         boolean lookup = job.optBoolean("attempted");
+        if (!lookup && job.optInt("formatVersion", 1) == 2)
+          job.put("priorSummaries", summaries.priorSummaries(book, index));
         JSONObject payload =
             new JSONObject()
                 .put("chapterKey", job.getString("key"))
@@ -256,6 +258,14 @@ public final class ChapterSummaryService extends Service {
                     new JSONObject()
                         .put("chapter", job.getInt("cutoffChapter"))
                         .put("positionMs", job.getLong("cutoffPosition")));
+        if (job.optInt("formatVersion", 1) == 2)
+          payload
+              .put("formatVersion", 2)
+              .put(
+                  "priorSummaries",
+                  job.optJSONArray("priorSummaries") == null
+                      ? new JSONArray()
+                      : job.getJSONArray("priorSummaries"));
         check();
         job.put("attempted", true);
         saveStage(
@@ -276,6 +286,7 @@ public final class ChapterSummaryService extends Service {
                   + " again.");
         summaries.saveSummary(book, chapter, reply, passage);
         saveStage(queue, job, "complete", "Summary saved");
+        RecapNotifications.ready(this, book, index, reply);
       }
     } catch (Exception e) {
       if (queue != null && current != null)

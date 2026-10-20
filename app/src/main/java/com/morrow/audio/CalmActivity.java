@@ -10,7 +10,7 @@ import android.widget.*;
 abstract class CalmActivity extends Activity {
   static final int BG = 0xfff7f5f0, INK = 0xff30352f, MUTED = 0xff818277;
   protected int SAGE, SOFT;
-  protected LinearLayout body;
+  protected LinearLayout body, pageRoot;
 
   @Override
   public void onCreate(android.os.Bundle state) {
@@ -89,6 +89,7 @@ abstract class CalmActivity extends Activity {
     SAGE = AccentPalette.color(this);
     SOFT = AccentPalette.soft(this);
     LinearLayout root = col();
+    pageRoot = root;
     root.setBackgroundColor(BG);
     root.setOnApplyWindowInsetsListener(
         (v, insets) -> {
@@ -108,7 +109,7 @@ abstract class CalmActivity extends Activity {
     body = col();
     pad(body, 24, 16);
     scroll.addView(body);
-    root.addView(scroll, new LinearLayout.LayoutParams(-1, -1));
+    root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout top = row();
     IconView back = new IconView(this, "back", SAGE);
     back.setOnClickListener(v -> finish());

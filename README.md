@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.7.1 (build 11) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 1.8.0 (build 12) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,16 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## Catch up (1.8.0)
+
+Tap **Catch up · last chapter** beneath the home screen’s continue-listening card to open the last completed chapter’s saved recap, or prepare it in the background. New summaries require a one-time explanation and consent; saved recaps reopen locally without an AI request. The cream recap sheet uses the app’s serif headings and selected accent colour. A completion notification invites you back to the exact saved chapter, with private lock-screen content.
+
+The bottom **Catch up** tab has book and chapter dropdowns, optional multiple selection, saved recaps and graphic scenes linked to their source chapters. Its allowance card reads the private server’s **25 chapter attempts shared across all testers per UTC day**, separate from the 20-request budget for other text features. Failed generation attempts count; cached reads and allowance checks are free. Graphic scenes retain their separate shared limit of three medium-quality pages per day.
+
+A chapter’s complete local transcript is sent in one summary request, with up to four bounded earlier saved recaps for story context. The prompt asks for grounded emotional movement, motives, stakes, themes and key plot points, without future events or external book knowledge. Summaries stay within 100 words plus exact supporting source quotes. Local transcription can mishear names and AI can make mistakes; the source quotes help review the recap. Only completed chapters are eligible, and rewinding hides summaries and linked scenes beyond the new listening position.
+
+The older release notes below describe when the underlying features were introduced; the current chapter allowance and selection controls are those above.
 
 ## Listening-screen recap card (1.7.1)
 
@@ -121,3 +131,15 @@ Third-party notices are included inside the app. This is a local audiobook app; 
 
 ### Read along and AI companion (1.4.0)
 Open a book's player → **Read along · recap · illustrate**. Import a chapter SRT/VTT or explicitly transcribe up to five minutes already reached in playback. Completed timed lines appear as you listen. Long-press to recap, ask about, or illustrate a passage. Catch me up uses available recent transcript, with a listening cutoff and quoted evidence. One image request creates a medium-quality, four-panel graphic-novel page; three image attempts per UTC day are shared across the private server. Saved pages reopen locally and export as JPEG. Transcripts export as SRT; these assets are not included in library backups. Recaps, questions and illustrations require the [private backend](ai-backend/README.md). In 1.5.0, transcription also runs free and offline with the bundled English recognizer.
+
+## Catch up and chapter memories (1.8.0)
+
+The home-screen Catch up shortcut opens or creates the last completed chapter’s recap. After one informed opt-in, new chapter summaries start in one tap; disable this in Catch up at any time. Saved recaps always open locally. The player and notifications use a cream, rounded recap sheet with serif headings and the selected accent.
+
+The Catch up bottom tab has book/chapter dropdowns, an optional batch picker (up to 25), saved recaps and graphic scenes linked to exact chapter source identities. Older unambiguous single-file scenes are recognised; other older pages remain in Read along. New scene generation uses the existing passage selection and explicit image-charge confirmation.
+
+The private server has a separate shared allowance of **25 chapter attempts per UTC day**, plus the existing 20 other text attempts and three medium-quality image attempts. Failed attempts count; cached reopening and the authenticated `/chapter-usage` endpoint are free. Usage is fetched from the server, with an explicitly labelled cached value when offline. This is a private-server allowance, not a paid-user entitlement system.
+
+Chapter prompts now cover grounded emotional movement, stakes, themes and plot turns. At most four earlier saved recaps (4,500 characters total) provide story context; never later chapters or external book knowledge. Overview plus points remain within 100 words, with exact quotes from the current chapter. Context is checkpointed before the one generation attempt so interrupted work only looks up that same result. Existing v1 interrupted jobs retain their original lookup identity.
+
+The newest completed chapter posts one replaceable notification with a read action and a private lock-screen version. Notifications require Android permission. Rewinding before its chapter removes it. Processing still needs user initiation; no boot job, scheduled generation or automatic paid retry is added. Local data remains excluded from library backups.
