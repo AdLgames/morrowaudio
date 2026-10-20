@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 1.7.0 (build 10) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 1.7.1 (build 11) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,10 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## Listening-screen recap card (1.7.1)
+
+A compact **Chapter summaries** card now sits immediately below play/pause and above the smaller listening tools. Its soft background and small book icon keep it visible without competing with playback. Tap **Choose** to select chapters. Once a saved recap is available, a two-line preview appears; tap **View** to read its overview and key points locally, with **Choose chapters** for further work. The cover adapts to shorter phone screens so the recap card can fit with playback controls. No AI request occurs when reading or opening this card. Only completed, already-reached chapters can appear, and rewinding hides an ineligible preview. Cache reads run off the UI thread, with periodic refresh after background generation.
 
 ## Background chapter summaries (1.7.0)
 

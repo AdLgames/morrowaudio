@@ -40,6 +40,14 @@ public final class MainActivity extends Activity {
   private IconView miniPlay, bigPlay;
   private TextView miniSubtitle, positionLabel, durationLabel, chapterLabel, sleepLabel, speedLabel;
   private SeekBar seek;
+  private LinearLayout summaryCard;
+  private TextView summaryPreview, summaryHint, summaryAction;
+  private org.json.JSONObject cachedPlayerSummary;
+  private String summaryBookId = "";
+  private int summaryChapter = -1;
+  private boolean summaryLoading;
+  private long summaryCheckedAt;
+  private int summaryGeneration;
   private boolean seeking, searchVisible, alive = true;
   private long lastRender;
   private String lastCurrent = "";
@@ -316,6 +324,14 @@ public final class MainActivity extends Activity {
     sleepLabel = null;
     speedLabel = null;
     collection = null;
+    summaryCard = null;
+    summaryPreview = null;
+    summaryGeneration++;
+    summaryLoading = false;
+    cachedPlayerSummary = null;
+    summaryChapter = -1;
+    summaryBookId = "";
+    summaryCheckedAt = 0;
     root.removeAllViews();
     scroll = new ScrollView(this);
     scroll.setFillViewport(true);
@@ -784,7 +800,15 @@ public final class MainActivity extends Activity {
     toolbar("A MOMENT FOR YOURSELF", () -> go("library"), () -> bookMenu(b));
     LinearLayout center = col();
     center.setGravity(Gravity.CENTER_HORIZONTAL);
-    int width = Math.min(d(245), getResources().getDisplayMetrics().widthPixels - d(100));
+    // Keep playback and the compact recap card visible together on shorter phones.
+    int width =
+        Math.min(
+            d(225),
+            Math.min(
+                getResources().getDisplayMetrics().widthPixels - d(100),
+                Math.max(
+                    d(145),
+                    (int) ((getResources().getDisplayMetrics().heightPixels - d(465)) / 1.26))));
     ArtworkView cover = new ArtworkView(this, b, true);
     cover.setElevation(d(8));
     center.addView(cover, new LinearLayout.LayoutParams(width, (int) (width * 1.26)));
@@ -879,7 +903,9 @@ public final class MainActivity extends Activity {
       if (controls.getChildAt(ci) != bigPlay)
         controls.getChildAt(ci).setLayoutParams(new LinearLayout.LayoutParams(d(40), d(48)));
     body.addView(controls);
-    gap(body, 24);
+    gap(body, 12);
+    addPlayerSummaryCard();
+    gap(body, 16);
     LinearLayout tools = row();
     tools.setGravity(Gravity.CENTER);
     LinearLayout speed = tool("", null, this::speedMenu);
@@ -897,17 +923,157 @@ public final class MainActivity extends Activity {
     pad(soundLink, 12, 12);
     click(soundLink, this::soundControls);
     body.addView(soundLink);
-    gap(body, 12);
-    TextView transcriptLink = text("Chapter summaries · select chapters", 15, SAGE);
-    transcriptLink.setGravity(Gravity.CENTER);
-    pad(transcriptLink, 12, 16);
-    transcriptLink.setBackground(bg(SOFT, 18));
-    click(
-        transcriptLink,
-        () ->
-            startActivity(new Intent(this, ChapterSummariesActivity.class).putExtra("book", b.id)));
-    body.addView(transcriptLink);
     gap(body, 22);
+  }
+
+  private void addPlayerSummaryCard() {
+    summaryCard = row();
+    summaryCard.setBackground(bg(SOFT, 18));
+    pad(summaryCard, 16, 12);
+    summaryCard.setMinimumHeight(d(60));
+    summaryCard.setContentDescription(
+        "Chapter summaries. Choose chapters or view your saved recap.");
+    IconView symbol = icon("book", SAGE, null);
+    summaryCard.addView(symbol, new LinearLayout.LayoutParams(d(28), d(32)));
+    LinearLayout copy = col();
+    LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(0, -2, 1);
+    copyParams.leftMargin = d(10);
+    copyParams.rightMargin = d(8);
+    TextView title = text("Chapter summaries", 14, INK);
+    title.setTypeface(null, Typeface.BOLD);
+    copy.addView(title);
+    gap(copy, 4);
+    summaryHint = text("Choose chapters · concise catch-ups", 11, MUTED);
+    summaryHint.setMaxLines(1);
+    summaryHint.setEllipsize(TextUtils.TruncateAt.END);
+    copy.addView(summaryHint);
+    summaryPreview = text("", 12, INK);
+    summaryPreview.setMaxLines(2);
+    summaryPreview.setEllipsize(TextUtils.TruncateAt.END);
+    summaryPreview.setVisibility(View.GONE);
+    summaryPreview.setContentDescription("Saved chapter recap preview");
+    copy.addView(summaryPreview);
+    summaryCard.addView(copy, copyParams);
+    summaryAction = text("Choose ›", 12, SAGE);
+    summaryCard.addView(summaryAction);
+    click(summaryCard, this::openPlayerSummary);
+    body.addView(summaryCard);
+  }
+
+  private int lastReachedSummaryChapter(Library.Book book) {
+    if (player != null && currentBook() != null && currentBook().id.equals(book.id)) {
+      int index =
+          Math.max(0, Math.min(player.getCurrentMediaItemIndex(), book.chapters.size() - 1));
+      long duration = book.chapters.get(index).duration;
+      return player.getPlaybackState() == Player.STATE_ENDED
+              || (duration > 0 && player.getCurrentPosition() >= duration)
+          ? index
+          : index - 1;
+    }
+    return book.finished
+        ? book.chapters.size() - 1
+        : Math.min(book.index - 1, book.chapters.size() - 1);
+  }
+
+  private void clearPlayerSummary() {
+    cachedPlayerSummary = null;
+    summaryChapter = -1;
+    if (summaryPreview != null) {
+      summaryPreview.setText("");
+      summaryPreview.setVisibility(View.GONE);
+    }
+    if (summaryHint != null) summaryHint.setText("Choose chapters · concise catch-ups");
+    if (summaryAction != null) summaryAction.setText("Choose ›");
+  }
+
+  private void refreshPlayerSummary(Library.Book book) {
+    if (summaryCard == null) return;
+    int eligible = lastReachedSummaryChapter(book);
+    if (!book.id.equals(summaryBookId)) {
+      summaryBookId = book.id;
+      summaryGeneration++;
+      summaryLoading = false;
+      summaryCheckedAt = 0;
+      clearPlayerSummary();
+    }
+    if (summaryChapter > eligible) {
+      clearPlayerSummary();
+      summaryCheckedAt = 0;
+    }
+    if (eligible < 0 || summaryLoading || SystemClock.elapsedRealtime() - summaryCheckedAt < 3000)
+      return;
+    summaryLoading = true;
+    summaryCheckedAt = SystemClock.elapsedRealtime();
+    int generation = summaryGeneration;
+    // Snapshot chapter identities on the UI thread; disk reads never run in the playback ticker.
+    List<Library.Chapter> chapters = new ArrayList<>(book.chapters);
+    io.execute(
+        () -> {
+          org.json.JSONObject found = null;
+          int chapter = -1;
+          try {
+            ChapterSummaryStore store = new ChapterSummaryStore(this);
+            for (int n = Math.min(eligible, chapters.size() - 1); n >= 0; n--) {
+              found = store.summary(book, chapters.get(n));
+              if (found != null) {
+                chapter = n;
+                break;
+              }
+            }
+          } catch (Exception ignored) {
+          }
+          final org.json.JSONObject reply = found;
+          final int index = chapter;
+          handler.post(
+              () -> {
+                if (!alive || generation != summaryGeneration || summaryCard == null) return;
+                summaryLoading = false;
+                if (currentBook() == null
+                    || !currentBook().id.equals(book.id)
+                    || reply == null
+                    || index > lastReachedSummaryChapter(book)
+                    || index >= book.chapters.size()
+                    || book.chapters.get(index) != chapters.get(index)) {
+                  clearPlayerSummary();
+                  return;
+                }
+                cachedPlayerSummary = reply;
+                summaryChapter = index;
+                summaryHint.setText("Last saved · chapter " + (index + 1));
+                summaryPreview.setText(reply.optString("overview"));
+                summaryPreview.setVisibility(View.VISIBLE);
+                summaryAction.setText("View ›");
+              });
+        });
+  }
+
+  private void openPlayerSummary() {
+    Library.Book book = currentBook() != null ? currentBook() : selected;
+    if (book == null) return;
+    Runnable choose =
+        () ->
+            startActivity(
+                new Intent(this, ChapterSummariesActivity.class).putExtra("book", book.id));
+    if (cachedPlayerSummary == null
+        || !book.id.equals(summaryBookId)
+        || summaryChapter > lastReachedSummaryChapter(book)) {
+      choose.run();
+      return;
+    }
+    try {
+      StringBuilder message = new StringBuilder(cachedPlayerSummary.getString("overview"));
+      org.json.JSONArray points = cachedPlayerSummary.getJSONArray("points");
+      for (int n = 0; n < points.length(); n++)
+        message.append("\n\n• ").append(points.getString(n));
+      new AlertDialog.Builder(this)
+          .setTitle("Chapter " + (summaryChapter + 1) + " · saved recap")
+          .setMessage(message.toString())
+          .setPositiveButton("Choose chapters", (dialog, which) -> choose.run())
+          .setNegativeButton("Close", null)
+          .show();
+    } catch (Exception e) {
+      choose.run();
+    }
   }
 
   private LinearLayout tool(String label, String symbol, Runnable action) {
@@ -1031,6 +1197,7 @@ public final class MainActivity extends Activity {
               : b.chapters.get(index).title);
     }
     if (!screen.equals("player") || b == null) return;
+    refreshPlayerSummary(b);
     if (bigPlay != null) {
       bigPlay.icon(player.isPlaying() ? "pause" : "play");
       bigPlay.setContentDescription(player.isPlaying() ? "Pause" : "Play");

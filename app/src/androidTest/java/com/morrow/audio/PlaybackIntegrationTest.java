@@ -21,6 +21,17 @@ import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class PlaybackIntegrationTest {
+  private static View findDescription(View view, String description) {
+    if (description.contentEquals(
+        view.getContentDescription() == null ? "" : view.getContentDescription())) return view;
+    if (view instanceof ViewGroup group)
+      for (int n = 0; n < group.getChildCount(); n++) {
+        View found = findDescription(group.getChildAt(n), description);
+        if (found != null) return found;
+      }
+    return null;
+  }
+
   @Test
   public void importsRealDocumentsAndPlaysClippedChaptersWithSleepAndResume() throws Exception {
     Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
@@ -74,13 +85,83 @@ public class PlaybackIntegrationTest {
           android.content.pm.PackageManager.PERMISSION_GRANTED,
           ctx.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS));
     }
+    new ChapterSummaryStore(ctx)
+        .saveSummary(
+            b,
+            b.chapters.get(0),
+            new org.json.JSONObject()
+                .put("overview", "Mara opens the north gate.")
+                .put("points", new org.json.JSONArray().put("The key opens the gate."))
+                .put("quotes", new org.json.JSONArray().put("Mara opens the north gate.")),
+            "Mara opens the north gate.");
     screenshot(instrumentation, ctx, "library");
     instrumentation.runOnMainSync(
         () -> assertTrue(tap(activity.getWindow().getDecorView(), "Test Book")));
     instrumentation.runOnMainSync(
         () -> assertTrue(tap(activity.getWindow().getDecorView(), "Start listening")));
     await(instrumentation, () -> controller.isPlaying(), 90000);
+    instrumentation.runOnMainSync(
+        () -> {
+          View card =
+              findDescription(
+                  activity.getWindow().getDecorView(),
+                  "Chapter summaries. Choose chapters or view your saved recap.");
+          assertNotNull("Recaps should be on the listening screen", card);
+          android.graphics.Rect visible = new android.graphics.Rect();
+          assertTrue(
+              "The recap card should be visible beside the main playback area",
+              card.getGlobalVisibleRect(visible));
+          assertTrue(
+              "The entire compact card should fit without scrolling",
+              visible.height() >= card.getHeight() - 2);
+          assertTrue(
+              "The recap card must remain compact",
+              card.getHeight() <= Math.round(110 * ctx.getResources().getDisplayMetrics().density));
+          assertEquals(
+              View.GONE,
+              findDescription(activity.getWindow().getDecorView(), "Saved chapter recap preview")
+                  .getVisibility());
+        });
     screenshot(instrumentation, ctx, "player");
+    instrumentation.runOnMainSync(
+        () -> {
+          controller.pause();
+          controller.seekTo(1, 0);
+        });
+    await(instrumentation, () -> controller.getCurrentMediaItemIndex() == 1, 10000);
+    await(
+        instrumentation,
+        () ->
+            findDescription(activity.getWindow().getDecorView(), "Saved chapter recap preview")
+                    .getVisibility()
+                == View.VISIBLE,
+        10000);
+    instrumentation.runOnMainSync(
+        () -> {
+          assertEquals(
+              "Mara opens the north gate.",
+              ((TextView)
+                      findDescription(
+                          activity.getWindow().getDecorView(), "Saved chapter recap preview"))
+                  .getText()
+                  .toString());
+          controller.pause();
+          controller.seekTo(0, 500);
+        });
+    await(
+        instrumentation,
+        () ->
+            findDescription(activity.getWindow().getDecorView(), "Saved chapter recap preview")
+                    .getVisibility()
+                == View.GONE,
+        10000);
+    instrumentation.runOnMainSync(
+        () -> {
+          controller.seekTo(0, 500);
+          controller.play();
+        });
+    await(instrumentation, () -> controller.getCurrentMediaItemIndex() == 0, 10000);
+
     instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
     instrumentation.waitForIdleSync();
     await(
