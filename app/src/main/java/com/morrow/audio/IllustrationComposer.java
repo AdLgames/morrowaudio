@@ -135,6 +135,13 @@ final class IllustrationComposer {
 
   private void openPassage() {
     if (busy) return;
+    if (passageOpen) {
+      passageOpen = false;
+      accepted = false;
+      highlight.accept(new JSONArray());
+      refresh();
+      return;
+    }
     passageOpen = true;
     if (passage.length() == 0) suggest(false);
     highlight.accept(passage);
@@ -175,7 +182,7 @@ final class IllustrationComposer {
     passageOpen = true;
     refresh();
     state.setText(
-        "Select text above, then tap Use my selected transcript text. No request is sent.");
+        "Hold the transcript text above, then choose Use for illustration. No request is sent.");
     activity.selectIllustrationPassage();
   }
 
@@ -234,6 +241,7 @@ final class IllustrationComposer {
     passagePanel.setVisibility(passageOpen ? View.VISIBLE : View.GONE);
     pictures.setVisibility(passageOpen && accepted ? View.VISIBLE : View.GONE);
     state.setVisibility(state.getText().length() > 0 ? View.VISIBLE : View.GONE);
+    passageAction.setText(passageOpen ? "Hide passage options  ▴" : "Illustrate a passage");
     passageAction.setEnabled(!busy);
     chapterAction.setEnabled(!busy);
     keep.setEnabled(!busy && valid(passage));
