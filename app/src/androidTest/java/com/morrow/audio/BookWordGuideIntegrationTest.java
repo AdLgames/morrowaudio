@@ -1,5 +1,10 @@
 package com.morrow.audio;
 
+import static androidx.test.espresso.Espresso.*;
+import static androidx.test.espresso.action.ViewActions.*;
+import static androidx.test.espresso.assertion.ViewAssertions.*;
+import static androidx.test.espresso.matcher.RootMatchers.*;
+import static androidx.test.espresso.matcher.ViewMatchers.*;
 import static org.junit.Assert.*;
 
 import android.app.Instrumentation;
@@ -17,6 +22,11 @@ import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class BookWordGuideIntegrationTest {
+  private void openTextMenu() {
+    onView(withContentDescription("Chapter studio menu")).perform(scrollTo(), click());
+    onView(withText("Text & book words")).inRoot(isDialog()).perform(scrollTo(), click());
+  }
+
   private Library.Book book() {
     Library.Book b = new Library.Book();
     b.title = "Book word guide fixture";
@@ -97,29 +107,24 @@ public class BookWordGuideIntegrationTest {
     try {
       i.waitForIdleSync();
       assertDisplay(i, activity, "Kwisatz waited.");
-      i.runOnMainSync(
-          () ->
-              assertTrue(
-                  find(activity.getWindow().getDecorView(), "Toggle original transcript")
-                      .performClick()));
+      openTextMenu();
+      onView(withContentDescription("Toggle original transcript"))
+          .inRoot(isDialog())
+          .perform(scrollTo(), click());
       assertDisplay(i, activity, "quiz at waited.");
       assertTrue(BookWordGuide.load(file).original());
-      i.runOnMainSync(
-          () ->
-              assertTrue(
-                  find(activity.getWindow().getDecorView(), "Toggle original transcript")
-                      .performClick()));
+      openTextMenu();
+      onView(withContentDescription("Toggle original transcript"))
+          .inRoot(isDialog())
+          .perform(scrollTo(), click());
       assertDisplay(i, activity, "Kwisatz waited.");
       i.runOnMainSync(() -> book.position = 1500);
       SystemClock.sleep(700);
       i.waitForIdleSync();
       assertDisplay(i, activity, "quiz at waited.");
-      i.runOnMainSync(
-          () ->
-              assertEquals(
-                  View.GONE,
-                  find(activity.getWindow().getDecorView(), "Toggle original transcript")
-                      .getVisibility()));
+      openTextMenu();
+      onView(withContentDescription("Toggle original transcript")).check(doesNotExist());
+      onView(withText("Done")).inRoot(isDialog()).perform(scrollTo(), click());
       assertEquals(raw, store.load(book, book.chapters.get(0)).cues());
       assertFalse(
           TranscriptTimeline.srt(store.load(book, book.chapters.get(0)).cues())

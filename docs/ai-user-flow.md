@@ -1,4 +1,4 @@
-# Narrumo 2.0.0: AI user flow
+# Narrumo 2.0.1: AI user flow
 
 The bottom navigation is **Library · Bookmarks · AI · Settings**. Settings and book details link to the same AI section. The listening screen retains a small AI companion card and a one-tap last-chapter recap on Library.
 
@@ -8,7 +8,10 @@ flowchart TD
     R --> S[Chapter studio]
     AI[AI tab: choose book and chapter] --> S
     Settings --> AI
-    S --> T[Transcript and suggested passage]
+    S --> T[Transcript and two illustration choices]
+    S --> Menu[Top-right menu: Transcription, Text tools, Saved pictures, Usage, Connection]
+    T --> Passage[Illustrate a passage: reveal preview and controls]
+    Passage --> Change[Change passage menu]
     T --> P{Use this passage?}
     P -->|Keep| N[Choose 1–3 pictures]
     P -->|Select another| M[Select passage in transcript]
@@ -33,7 +36,7 @@ flowchart TD
     B --> Play[Shared audio playback and progress]
 ```
 
-The chapter studio places the illustration panel immediately beneath a scrollable transcript. A free suggestion uses only available, already-heard chapter text; its passage preview is visible and the source lines are highlighted. Long-press text → **Use for illustration**, or select text and use the visible button, to replace it. **Let AI choose a key moment** is an explicitly confirmed request using one shared text attempt. AI returns only validated cue indices, so it cannot supply an invented passage.
+The chapter studio places a compact illustration card immediately beneath a scrollable transcript. Its default choices are Illustrate a passage and Let AI illustrate the chapter. Secondary tools live in the top-right menu; a passage preview and its Change passage menu appear only after choosing Passage. Transcription setup appears contextually when no heard text exists. A free suggestion uses only available, already-heard chapter text; its passage preview is visible and the source lines are highlighted. Long-press text → **Use for illustration**, or select text and use the visible button, to replace it. **Let AI choose a key moment** is an explicitly confirmed request using one shared text attempt. AI returns only validated cue indices, so it cannot supply an invented passage.
 
 Choose **Keep this passage** to reveal picture count options. **Select another passage** scrolls back to the transcript. Choose 1–3 pictures, then review the exact passage, count and last checked shared allowance before confirming. Each picture is one medium-quality, four-panel graphic-novel page. Multiple pictures depict distinct chronological moments. Whole chapter → choose 1–3 pictures → confirm one text planning request → review exact source moments and edit a shared visual guide → separately confirm image generation. Whole-chapter mode requires complete heard/transcribed coverage. Book identity and broader heard chapter text supply names and setting context. Model knowledge is explicitly unverified; no live research is performed. Every successful page is saved with its chapter before opening the preview, so closing it loses nothing. The preview links to Chapter gallery and **Generate another · uses allowance**, which returns to passage selection and requires a fresh review. An identical cached page reopens free; choose new text for a new scene. Pages are requested sequentially and cached individually; failure stops the remaining batch, without automatic retries. Leaving stops pages not yet started. Saved pictures link directly to their chapter even if no recap exists yet. Rewinding hides unavailable source passages and pictures.
 

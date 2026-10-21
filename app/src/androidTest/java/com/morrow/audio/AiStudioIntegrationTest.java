@@ -67,6 +67,30 @@ public class AiStudioIntegrationTest {
                   View.GONE,
                   find(activity.getWindow().getDecorView(), "Illustration picture options")
                       .getVisibility()));
+      onView(withContentDescription("Chapter studio menu")).perform(scrollTo(), click());
+      onView(withText("Transcription")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withText("Speech quality & book spellings"))
+          .inRoot(isDialog())
+          .check(matches(isDisplayed()));
+      onView(withText("Done")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withContentDescription("Chapter studio menu")).perform(scrollTo(), click());
+      onView(withText("Text & book words")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withContentDescription("Review book-specific word guide"))
+          .inRoot(isDialog())
+          .check(matches(isDisplayed()));
+      onView(withText("Done")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withContentDescription("Chapter illustration composer")).perform(scrollTo());
+      onView(withContentDescription("Let AI illustrate the chapter")).check(matches(isDisplayed()));
+      onView(withContentDescription("Passage illustration controls"))
+          .check(matches(withEffectiveVisibility(Visibility.GONE)));
+      onView(withText("Rebuild this chapter’s transcript")).check(doesNotExist());
+      try (ParcelFileDescriptor fd =
+              i.getUiAutomation()
+                  .executeShellCommand("screencap -p /sdcard/morrow-ai-passage.png");
+          InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
+        while (in.read() != -1) {}
+      }
+      onView(withContentDescription("Illustrate a passage")).perform(scrollTo(), click());
       onView(withContentDescription("Keep illustration passage")).perform(scrollTo(), click());
       i.runOnMainSync(
           () -> {
@@ -182,12 +206,16 @@ public class AiStudioIntegrationTest {
           "Returning to selection keeps all successful pages",
           3,
           ChapterScenes.list(ctx, book, 0).size());
-      onView(withText("Select another passage")).perform(scrollTo(), click());
+      onView(withContentDescription("Change illustration passage")).perform(scrollTo(), click());
+      onView(withText("Select another passage in the transcript"))
+          .inRoot(isDialog())
+          .perform(scrollTo(), click());
       onView(withContentDescription("Audiobook transcript up to playback position"))
           .check(matches(isDisplayed()));
       onView(withContentDescription("Keep illustration passage")).perform(scrollTo(), click());
       try (ParcelFileDescriptor fd =
-              i.getUiAutomation().executeShellCommand("screencap -p /sdcard/morrow-ai-studio.png");
+              i.getUiAutomation()
+                  .executeShellCommand("screencap -p /sdcard/morrow-ai-passage.png");
           InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
         while (in.read() != -1) {}
       }
