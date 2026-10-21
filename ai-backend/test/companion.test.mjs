@@ -53,3 +53,16 @@ test('three requested visual variations stay individually cached and obey one sh
  for(const variation of [0,4,1.1,'3'])assert.equal((await handleRequest(request({...body('comic'),variation}),env,provider)).status,400);
  assert.equal(calls,3);
 });
+
+test('storyboard uses one text allowance, book context and exact separate beats; invalid output never starts images',async()=>{
+ const env=config();let payload,calls=0;const input={action:'storyboard',scope:'chapter',count:3,durationMs:6000,book:{title:'The Copper Key',author:'A. Writer',guide:''},cutoff:{chapter:0,positionMs:6000},cues:[0,1,2].map(n=>cue(0,n*2000,(n+1)*2000,['Mara enters the hall.','The guard blocks the door.','She runs into rain.'][n])),question:''};
+ const invoke=async(url,opts)=>{calls++;assert.ok(url.endsWith('/responses'));payload=JSON.parse(opts.body);return new Response(JSON.stringify({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({guide:'Mara in a dark coat (art direction); stone hall and rainy street.',scenes:[0,1,2].map(n=>({startCue:n,endCue:n,title:'Moment '+n,direction:'Show the source action and emotion.'}))})}]}]}));};
+ const response=await handleRequest(request(input),env,invoke);assert.equal(response.status,200);const plan=await response.json();assert.deepEqual(plan.scenes.map(s=>s.cues[0].text),input.cues.map(c=>c.text));assert.equal(calls,1);assert.equal(env.saved.data.get('usage').count,1);assert.equal(env.saved.data.get('image-usage'),undefined);assert.ok(payload.input.includes('The Copper Key'));assert.ok(payload.instructions.includes('non-overlapping'));assert.equal(payload.store,false);
+ const malformed=await handleRequest(request({...input,count:4}),env,invoke);assert.equal(malformed.status,400);assert.equal(calls,1);
+});
+test('reviewed visual-guide changes cannot return artwork cached for a different design',async()=>{
+ const env=config();let calls=0;const invoke=async()=>{calls++;return new Response(JSON.stringify({data:[{b64_json:'/9j/YWJjZA=='}]}));};
+ const input={...body('comic'),book:{title:'The Copper Key',author:'A. Writer',guide:'Mara: blue coat.'},scene:{title:'The inn',direction:'Show her waiting.',number:1,total:1}};
+ assert.equal((await handleRequest(request(input),env,invoke)).status,200);assert.equal((await handleRequest(request(input),env,invoke)).status,200);assert.equal(calls,1);
+ input.book.guide='Mara: red coat.';assert.equal((await handleRequest(request(input),env,invoke)).status,200);assert.equal(calls,2);
+});

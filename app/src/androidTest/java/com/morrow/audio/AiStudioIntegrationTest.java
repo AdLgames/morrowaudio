@@ -31,7 +31,7 @@ public class AiStudioIntegrationTest {
     Library lib = Library.get(ctx);
     Library.Book book = new Library.Book();
     book.title = "A night at the harbour";
-    book.position = 3000;
+    book.position = 7000;
     book.chapters.add(new Library.Chapter("The brass key", "file:///studio-fixture.wav", 0, 10000));
     TranscriptStore store = new TranscriptStore(ctx);
     store.save(
@@ -41,7 +41,10 @@ public class AiStudioIntegrationTest {
             List.of(
                 new TranscriptTimeline.Cue(
                     0, 2000, "Mara opened the gate, her face lit by the fire."),
-                new TranscriptTimeline.Cue(3000, 6000, "An unheard revelation.")),
+                new TranscriptTimeline.Cue(2000, 4000, "She grasped a brass key beside the door."),
+                new TranscriptTimeline.Cue(
+                    4000, 6000, "Rain fell as Mara escaped into the street."),
+                new TranscriptTimeline.Cue(7000, 9000, "An unheard revelation.")),
             List.of(new TranscriptTimeline.Range(0, 6000))));
     i.runOnMainSync(
         () -> {
@@ -75,27 +78,68 @@ public class AiStudioIntegrationTest {
             ((Spinner) find(activity.getWindow().getDecorView(), "Number of illustrations"))
                 .setSelection(2);
           });
-      onView(withContentDescription("Review chapter illustrations")).perform(scrollTo(), click());
-      onView(org.hamcrest.Matchers.allOf(withText("Confirm & create 3 pictures"), isClickable()))
-          .inRoot(isDialog())
-          .perform(scrollTo())
-          .check(matches(isDisplayed()));
-      onView(withText("Change text or picture count"))
-          .inRoot(isDialog())
-          .perform(scrollTo(), click());
-      // Seed exact cached pages: confirmation must save chapter links and open review,
-      // without sending any image request or consuming a paid provider allowance.
-      JSONArray cues =
-          new JSONArray()
-              .put(
-                  new JSONObject()
-                      .put("chapter", 0)
-                      .put("startMs", 0)
-                      .put("endMs", 2000)
-                      .put("text", "Mara opened the gate, her face lit by the fire."));
+      // Seed one bounded storyboard and three separate source moments locally.
+      // Opening/reviewing cached work must not make a provider call.
+      JSONArray cues = new JSONArray();
+      String[] lines = {
+        "Mara opened the gate, her face lit by the fire.",
+        "She grasped a brass key beside the door.",
+        "Rain fell as Mara escaped into the street."
+      };
+      for (int n = 0; n < 3; n++)
+        cues.put(
+            new JSONObject()
+                .put("chapter", 0)
+                .put("startMs", n * 2000)
+                .put("endMs", (n + 1) * 2000)
+                .put("text", lines[n]));
+      JSONObject boundary = new JSONObject().put("chapter", 0).put("positionMs", 7000);
+      JSONObject bookInfo =
+          new JSONObject().put("title", book.title).put("author", book.author).put("guide", "");
+      JSONObject payload =
+          new JSONObject()
+              .put("action", "storyboard")
+              .put("scope", "passage")
+              .put("count", 3)
+              .put("durationMs", 10000)
+              .put("book", bookInfo)
+              .put("cues", cues)
+              .put("contextCues", cues)
+              .put("cutoff", boundary)
+              .put("question", "");
+      JSONArray scenes = new JSONArray();
+      for (int n = 0; n < 3; n++)
+        scenes.put(
+            new JSONObject()
+                .put("title", "Moment " + (n + 1))
+                .put("direction", "Depict this source event.")
+                .put("number", n + 1)
+                .put("total", 3)
+                .put("cues", new JSONArray().put(cues.getJSONObject(n))));
+      JSONObject plan =
+          new JSONObject()
+              .put("guide", "Mara: dark coat (art direction). Stone gate, brass key, rainy street.")
+              .put("scenes", scenes);
+      TranscriptStore.write(
+          store.cached(
+              "storyboard-v2\n"
+                  + ChapterSummaryStore.key(book, book.chapters.get(0))
+                  + "\n"
+                  + payload,
+              ".storyboard.json"),
+          plan.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      JSONObject reviewed =
+          new JSONObject(bookInfo.toString()).put("guide", plan.getString("guide"));
       for (int variation = 1; variation <= 3; variation++) {
+        JSONObject scene = scenes.getJSONObject(variation - 1);
         String key =
-            book.id + "\ncomic\n" + cues + "\n" + (variation == 1 ? "" : "variation:" + variation);
+            book.id
+                + "\ngraphic-v2\n"
+                + scene.getJSONArray("cues")
+                + "\n"
+                + reviewed
+                + "\n"
+                + scene;
         Bitmap bitmap = Bitmap.createBitmap(1024, 1024, Bitmap.Config.ARGB_8888);
         try (FileOutputStream out = new FileOutputStream(store.cached(key, ".jpg"))) {
           bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
@@ -104,7 +148,10 @@ public class AiStudioIntegrationTest {
         }
       }
       onView(withContentDescription("Review chapter illustrations")).perform(scrollTo(), click());
-      onView(withText("Confirm & create 3 pictures"))
+      onView(withContentDescription("Book visual guide"))
+          .inRoot(isDialog())
+          .check(matches(isDisplayed()));
+      onView(withText("Confirm & create 3 picture(s)"))
           .inRoot(isDialog())
           .perform(scrollTo(), click());
       long reviewDeadline = SystemClock.elapsedRealtime() + 10000;
