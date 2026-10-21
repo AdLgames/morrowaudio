@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 
 import android.app.*;
 import android.content.*;
-import android.graphics.Bitmap;
+import android.os.ParcelFileDescriptor;
 import android.view.*;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -169,10 +169,11 @@ public class WelcomeIntegrationTest {
   }
 
   private void screenshot(String name) throws Exception {
-    try (OutputStream out = new FileOutputStream("/sdcard/morrow-" + name + ".png")) {
-      Bitmap screenshot = i.getUiAutomation().takeScreenshot();
-      screenshot.compress(Bitmap.CompressFormat.PNG, 100, out);
-      screenshot.recycle();
+    try (ParcelFileDescriptor fd =
+            i.getUiAutomation()
+                .executeShellCommand("screencap -p /sdcard/morrow-" + name + ".png");
+        InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
+      while (in.read() != -1) {}
     }
   }
 
