@@ -79,14 +79,17 @@ public class AiStudioIntegrationTest {
           .inRoot(isDialog())
           .check(matches(isDisplayed()));
       onView(withText("Done")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withContentDescription("Chapter studio menu")).perform(scrollTo(), click());
+      onView(withText("Saved chapter pictures")).inRoot(isDialog()).perform(scrollTo(), click());
+      onView(withText("Export a saved picture")).inRoot(isDialog()).check(matches(isDisplayed()));
+      onView(withText("Done")).inRoot(isDialog()).perform(scrollTo(), click());
       onView(withContentDescription("Chapter illustration composer")).perform(scrollTo());
       onView(withContentDescription("Let AI illustrate the chapter")).check(matches(isDisplayed()));
       onView(withContentDescription("Passage illustration controls"))
           .check(matches(withEffectiveVisibility(Visibility.GONE)));
       onView(withText("Rebuild this chapter’s transcript")).check(doesNotExist());
       try (ParcelFileDescriptor fd =
-              i.getUiAutomation()
-                  .executeShellCommand("screencap -p /sdcard/morrow-ai-studio.png");
+              i.getUiAutomation().executeShellCommand("screencap -p /sdcard/morrow-ai-studio.png");
           InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
         while (in.read() != -1) {}
       }

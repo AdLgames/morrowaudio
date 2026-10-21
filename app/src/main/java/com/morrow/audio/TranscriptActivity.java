@@ -271,12 +271,25 @@ public final class TranscriptActivity extends CalmActivity {
             "Your transcript and pictures stay with this chapter.");
     sheet.action("Transcription", false, this::transcriptionMenu);
     sheet.action("Text & book words", false, this::textMenu);
-    sheet.action("Saved chapter pictures", false, () -> illustrations.openGallery());
+    sheet.action("Saved chapter pictures", false, this::pictureMenu);
     sheet.action("Allowance & privacy", false, this::usageMenu);
     sheet.action(
         "AI connection settings",
         false,
         () -> startActivity(new Intent(this, AiTrialActivity.class)));
+    sheet.action("Done", false, () -> {});
+    sheet.show();
+  }
+
+  private void pictureMenu() {
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Chapter studio",
+            "Saved pictures",
+            "Open the chapter gallery or export a saved picture as JPEG.");
+    sheet.action("View chapter gallery", true, () -> illustrations.openGallery());
+    sheet.action("Export a saved picture", false, this::savedPages);
     sheet.action("Done", false, () -> {});
     sheet.show();
   }
