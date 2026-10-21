@@ -100,7 +100,12 @@ public class WelcomeIntegrationTest {
     Library.Book book = new Library.Book();
     book.title = "A quiet harbour";
     book.author = "Narrumo fixture";
-    book.chapters.add(new Library.Chapter("The arrival", "file:///tour-fixture.wav", 0, 10000));
+    book.chapters.add(
+        new Library.Chapter(
+            "The arrival",
+            android.net.Uri.fromFile(new File(ctx.getFilesDir(), "chapter1.wav")).toString(),
+            0,
+            8000));
     MainActivity activity = null;
     try {
       i.runOnMainSync(
