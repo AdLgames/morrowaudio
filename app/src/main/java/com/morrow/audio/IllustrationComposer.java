@@ -740,7 +740,8 @@ final class IllustrationComposer {
                   saved
                       + " picture"
                       + (saved == 1 ? "" : "s")
-                      + " saved with this chapter. Open saved pictures below to view them.");
+                      + " saved with this chapter. Open the studio menu → Saved chapter pictures to"
+                      + " view them.");
               refresh();
               refreshAllowance();
               if (saved > 0 && identity.equals(sourceIdentity) && !pages.isEmpty())

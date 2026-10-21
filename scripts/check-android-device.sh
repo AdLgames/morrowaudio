@@ -7,7 +7,7 @@ adb shell svc wifi disable
 pull_screens() {
   set +e
   mkdir -p app/build/reports/device-screenshots
-  for name in library player downloads widget sound backup appearance ai-lab transcript chapter-summaries recap-sheet ai-studio ai-passage; do
+  for name in library player downloads widget sound backup appearance ai-lab transcript chapter-summaries recap-sheet ai-studio ai-passage welcome tour-library tour-settings tour-player book-menu; do
     adb pull "/sdcard/morrow-$name.png" "app/build/reports/device-screenshots/$name.png" >/dev/null 2>&1
   done
 }

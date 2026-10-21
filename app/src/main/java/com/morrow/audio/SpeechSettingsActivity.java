@@ -16,7 +16,7 @@ public final class SpeechSettingsActivity extends CalmActivity {
   private final Handler handler = new Handler(Looper.getMainLooper());
   private volatile boolean alive = true, downloading;
   private volatile HttpURLConnection connection;
-  private TextView state, accurate;
+  private TextView state, accurate, leave;
   private Library.Book book;
 
   @Override
@@ -98,7 +98,8 @@ public final class SpeechSettingsActivity extends CalmActivity {
               }));
       gap(body, 20);
     }
-    body.addView(button("Back", false, this::finish));
+    leave = button("", false, this::leaveSetup);
+    body.addView(leave);
     render();
   }
 
@@ -106,6 +107,12 @@ public final class SpeechSettingsActivity extends CalmActivity {
     accurate.setText(
         WhisperSpeech.ready(this) ? "Use Accurate · Whisper" : "Download Accurate · about 60 MB");
     accurate.setEnabled(!downloading);
+    leave.setText(
+        downloading
+            ? "Stop download & leave setup"
+            : getIntent().getBooleanExtra("welcomeSetup", false)
+                ? "Continue to the quick tour"
+                : "Back");
     state.setText(
         downloading
             ? state.getText()
@@ -117,6 +124,28 @@ public final class SpeechSettingsActivity extends CalmActivity {
     if (downloading) return;
     getSharedPreferences("speech_quality", 0).edit().putString("engine", engine).apply();
     render();
+  }
+
+  private void leaveSetup() {
+    if (!downloading) {
+      finish();
+      return;
+    }
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Local speech",
+            "Stop this download?",
+            "Fast stays available. You can download Whisper again from Settings → Local speech"
+                + " setup.");
+    sheet.action("Keep downloading", true, () -> {});
+    sheet.action("Stop & continue", false, this::finish);
+    sheet.show();
+  }
+
+  @Override
+  public void onBackPressed() {
+    leaveSetup();
   }
 
   private void confirmDownload() {
@@ -203,7 +232,7 @@ public final class SpeechSettingsActivity extends CalmActivity {
                         e instanceof InterruptedIOException
                             ? "Download stopped. Your current recogniser is still available."
                             : "Could not finish the verified download. Check your connection and"
-                                  + " storage, then try again.");
+                                + " storage, then try again.");
                   }
                 });
           } finally {
