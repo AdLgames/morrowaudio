@@ -86,7 +86,7 @@ public class AiStudioIntegrationTest {
       onView(withText("Rebuild this chapter’s transcript")).check(doesNotExist());
       try (ParcelFileDescriptor fd =
               i.getUiAutomation()
-                  .executeShellCommand("screencap -p /sdcard/morrow-ai-passage.png");
+                  .executeShellCommand("screencap -p /sdcard/morrow-ai-studio.png");
           InputStream in = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
         while (in.read() != -1) {}
       }
