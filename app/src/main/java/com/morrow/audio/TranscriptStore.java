@@ -38,7 +38,24 @@ final class TranscriptStore {
   }
 
   Data load(Library.Book book, Library.Chapter chapter) throws Exception {
+    return loadFile(path(book, chapter));
+  }
+
+  Data previous(Library.Book book, Library.Chapter chapter) throws Exception {
+    return loadFile(new File(path(book, chapter) + ".previous"));
+  }
+
+  boolean hasPrevious(Library.Book book, Library.Chapter chapter) {
+    return new File(path(book, chapter) + ".previous").isFile();
+  }
+
+  void archive(Library.Book book, Library.Chapter chapter) throws Exception {
     File file = path(book, chapter);
+    if (file.isFile())
+      write(new File(file + ".previous"), read(new AtomicFile(file).openRead(), 10000000));
+  }
+
+  private Data loadFile(File file) throws Exception {
     if (!file.exists()) return new Data(new ArrayList<>(), new ArrayList<>());
     JSONObject data =
         new JSONObject(

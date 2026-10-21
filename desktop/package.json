@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "esbuild": "^0.25.12",
+    "mediabunny": "^1.24.1",
+    "music-metadata": "^11.9.0"
+  }
+}

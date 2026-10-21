@@ -25,6 +25,11 @@ final class OfflineTranscriber {
   record Result(List<TranscriptTimeline.Cue> cues, long durationMs) {}
 
   static Result transcribe(Context context, File wav, Progress progress) throws Exception {
+    return transcribe(context, wav, progress, null);
+  }
+
+  static Result transcribe(Context context, File wav, Progress progress, Library.Book book)
+      throws Exception {
     // A second screen must not load another copy of the acoustic model into memory.
     LOCK.lockInterruptibly();
     try {
@@ -51,6 +56,8 @@ final class OfflineTranscriber {
             || (length - 44) % 2 != 0)
           throw new IOException("Choose a valid audio section of up to five minutes");
         long duration = (length - 44) / 32;
+        if (WhisperSpeech.enabled(context))
+          return WhisperSpeech.transcribe(context, input, length, duration, book, progress);
         progress.update("Preparing offline English speech…");
         File directory = prepare(context);
         checkCancelled();

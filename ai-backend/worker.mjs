@@ -69,7 +69,25 @@ export async function handleRequest(request, env, fetchImpl = fetch) {
     return json({answer:answer.quotes.length?answer.answer:fallback,quotes:answer.quotes});
   } catch { return failed('The answer did not include valid passage evidence',502); }
 }
-export default {fetch(request, env) { return handleRequest(request, env); }};
+// The desktop app is on the existing public distribution origin. CORS does not
+// replace the existing bearer-token authentication or shared Durable Object limits.
+const DESKTOP_ORIGIN = 'https://morrow-audio.aptnote8.chatgpt.site';
+export async function browserRequest(request,env,fetchImpl=fetch) {
+  const origin=request.headers.get('Origin');
+  const allowed=origin===DESKTOP_ORIGIN;
+  if(request.method==='OPTIONS') {
+    if(!allowed||request.headers.get('Access-Control-Request-Method')!=='POST')return failed('Origin not allowed',403);
+    const requested=(request.headers.get('Access-Control-Request-Headers')||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean);
+    if(requested.some(s=>!['authorization','content-type'].includes(s)))return failed('Headers not allowed',403);
+    return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':DESKTOP_ORIGIN,'Access-Control-Allow-Methods':'POST','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Max-Age':'600','Vary':'Origin'}});
+  }
+  if(origin&&!allowed)return failed('Origin not allowed',403);
+  const response=await handleRequest(request,env,fetchImpl);
+  if(!allowed)return response;
+  const headers=new Headers(response.headers);headers.set('Access-Control-Allow-Origin',DESKTOP_ORIGIN);headers.set('Vary','Origin');
+  return new Response(response.body,{status:response.status,headers});
+}
+export default {fetch(request,env){return browserRequest(request,env);}};
 
 /** SQLite-backed Durable Object: reserve each attempt atomically before contacting OpenAI. */
 export class TrialBudget {

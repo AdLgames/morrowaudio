@@ -1663,13 +1663,14 @@ public final class MainActivity extends Activity {
         () -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://openlibrary.org"))));
     setting(
         "Open-source licenses",
-        "AndroidX Media3 · libtorrent4j & dependencies",
+        "Whisper · Vosk · AndroidX · libtorrent4j",
         () ->
             new AlertDialog.Builder(this)
                 .setTitle("Open-source software")
                 .setMessage(
-                    "Narrumo uses AndroidX Core, DocumentFile and Media3 (Apache License 2.0),"
-                        + " and their transitive dependencies.\n\n"
+                    "Narrumo uses Whisper/ggml (MIT), Vosk (Apache 2.0), and AndroidX Core,"
+                        + " DocumentFile and Media3 (Apache License 2.0), and their transitive"
+                        + " dependencies.\n\n"
                         + "Copyright The Android Open Source Project.\n"
                         + "https://www.apache.org/licenses/LICENSE-2.0\n\n"
                         + "Open Library provides book metadata. Cover images remain the property of"

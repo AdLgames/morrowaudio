@@ -1,0 +1,69 @@
+// Reproducible upstream source and native binaries; no model or audio is uploaded.
+def whisperHash = 'ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720'
+def whisperCache = new File(gradle.gradleUserHomeDir, 'caches/narrumo-whisper/1.9.5')
+def nativeOutput = layout.buildDirectory.dir('generated/whisperJni')
+tasks.register('bundleWhisperNative') {
+    inputs.dir(rootProject.file('app/src/main/cpp'))
+    inputs.property('sourceSha256', whisperHash)
+    outputs.dir(nativeOutput)
+    doLast {
+        def archive = new File(whisperCache, 'source.tar.gz')
+        def digest = { File f -> java.security.MessageDigest.getInstance('SHA-256').digest(f.bytes).encodeHex().toString() }
+        whisperCache.mkdirs()
+        if (!archive.isFile() || digest(archive) != whisperHash) {
+            def tmp = new File(whisperCache, 'source.download')
+            new URI('https://codeload.github.com/ggml-org/whisper.cpp/tar.gz/refs/tags/v1.9.5').toURL().withInputStream { i -> tmp.withOutputStream { o -> o << i } }
+            if (digest(tmp) != whisperHash) throw new GradleException('Whisper source checksum mismatch')
+            java.nio.file.Files.move(tmp.toPath(), archive.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+        def source = new File(whisperCache, 'whisper.cpp-1.9.5')
+        if (!new File(source, 'include/whisper.h').isFile()) copy { from tarTree(resources.gzip(archive)); into whisperCache }
+        def sdk = android.sdkDirectory
+        def ndk = new File(sdk, 'ndk/27.2.12479018')
+        if (!ndk.isDirectory()) throw new GradleException('Install Android NDK 27.2.12479018 for local Whisper')
+        ['arm64-v8a','armeabi-v7a','x86_64'].each { abi ->
+            def dir = new File(whisperCache, 'native-' + abi)
+            exec { commandLine 'cmake','-S',rootProject.file('app/src/main/cpp'),'-B',dir,'-G','Ninja','-DCMAKE_POLICY_VERSION_MINIMUM=3.5','-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_TOOLCHAIN_FILE=' + new File(ndk,'build/cmake/android.toolchain.cmake'),'-DANDROID_ABI=' + abi,'-DANDROID_PLATFORM=android-26','-DANDROID_STL=c++_static','-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON','-DWHISPER_SOURCE=' + source }
+            exec { commandLine 'cmake','--build',dir,'--target','narrumo_whisper','-j','3' }
+            copy { from new File(dir,'libnarrumo_whisper.so'); into nativeOutput.get().dir(abi) }
+        }
+    }
+}
+android.sourceSets.main.jniLibs.srcDir(nativeOutput)
+tasks.named('preBuild').configure { dependsOn('bundleWhisperNative') }
+// Test-only public-domain speech and verified model; never added to the release APK.
+def speechTestAssets = layout.buildDirectory.dir('generated/accurateSpeechTestAssets')
+tasks.register('bundleAccurateSpeechTest') {
+    inputs.property('fixtureFormat','canonical-pcm-v1')
+    inputs.property('modelSha256','4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f')
+    outputs.dir(speechTestAssets)
+    doLast {
+        def model=new File(whisperCache,'ggml-base.en-q5_1.bin')
+        def digest={File f -> java.security.MessageDigest.getInstance('SHA-256').digest(f.bytes).encodeHex().toString()}
+        if(!model.isFile()||digest(model)!='4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f'){
+            def temp=new File(model.path+'.download')
+            new URI('https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.en-q5_1.bin').toURL().withInputStream{i -> temp.withOutputStream{o -> o << i}}
+            if(digest(temp)!='4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f')throw new GradleException('Accurate speech test model checksum mismatch')
+            java.nio.file.Files.move(temp.toPath(),model.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+        copy { from model; into speechTestAssets }
+        // Match AudioClipper's canonical 44-byte PCM WAV output. The upstream
+        // public-domain fixture contains an extra LIST metadata chunk.
+        byte[] wav=new File(whisperCache,'whisper.cpp-1.9.5/samples/jfk.wav').bytes
+        def input=java.nio.ByteBuffer.wrap(wav).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        int at=12, offset=-1, length=0
+        while(at+8<=wav.length){
+            String id=new String(wav,at,4,java.nio.charset.StandardCharsets.US_ASCII)
+            int size=input.getInt(at+4)
+            if(size<0||at+8L+size>wav.length)throw new GradleException('Invalid speech fixture')
+            if(id=='data'){offset=at+8;length=size;break}
+            at+=8+size+(size%2)
+        }
+        if(offset<0)throw new GradleException('No PCM in speech fixture')
+        def output=java.nio.ByteBuffer.allocate(44+length).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        output.put('RIFF'.getBytes('US-ASCII')).putInt(36+length).put('WAVEfmt '.getBytes('US-ASCII')).putInt(16).putShort((short)1).putShort((short)1).putInt(16000).putInt(32000).putShort((short)2).putShort((short)16).put('data'.getBytes('US-ASCII')).putInt(length).put(wav,offset,length)
+        speechTestAssets.get().file('jfk.wav').asFile.bytes=output.array()
+    }
+}
+android.sourceSets.androidTest.assets.srcDir(speechTestAssets)
+tasks.matching { it.name == 'preDebugAndroidTestBuild' }.configureEach { dependsOn('bundleWhisperNative','bundleAccurateSpeechTest') }

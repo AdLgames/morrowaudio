@@ -8,6 +8,6 @@ mkdir -p dist
 "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
   --ks "$MORROW_KEYSTORE" --ks-key-alias morrow \
   --ks-pass "file:$MORROW_PASSWORD_FILE" \
-  --out dist/Narrumo-1.9.1.apk app/build/outputs/apk/release/app-release-unsigned.apk
-"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/Narrumo-1.9.1.apk
-(cd dist && sha256sum Narrumo-1.9.1.apk > Narrumo-1.9.1.apk.sha256)
+  --out dist/Narrumo-2.0.0.apk app/build/outputs/apk/release/app-release-unsigned.apk
+"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose dist/Narrumo-2.0.0.apk
+(cd dist && sha256sum Narrumo-2.0.0.apk > Narrumo-2.0.0.apk.sha256)
