@@ -21,4 +21,13 @@ capture_screens() {
   exit "$status"
 }
 trap capture_screens EXIT
-./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest
+# Exercise first-use UI in a fresh process before native speech/audio/torrent
+# fixtures leave a playback session behind. Retain both sets of device results.
+./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.morrow.audio.WelcomeIntegrationTest
+mkdir -p app/build/reports/onboarding-device
+cp -R app/build/reports/androidTests app/build/reports/onboarding-device/
+cp -R app/build/outputs/androidTest-results app/build/reports/onboarding-device/
+adb shell am force-stop com.morrow.audio
+./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.notClass=com.morrow.audio.WelcomeIntegrationTest
