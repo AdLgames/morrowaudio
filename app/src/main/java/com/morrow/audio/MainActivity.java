@@ -41,7 +41,9 @@ public final class MainActivity extends Activity {
   private TextView miniSubtitle, positionLabel, durationLabel, chapterLabel, sleepLabel, speedLabel;
   private SeekBar seek;
   private LinearLayout summaryCard;
-  private Dialog recapDialog;
+  private Dialog recapDialog, welcomeDialog;
+  private SpotlightTour tour;
+  private boolean resumed;
   private TextView summaryPreview, summaryHint, summaryAction;
   private org.json.JSONObject cachedPlayerSummary;
   private String summaryBookId = "";
@@ -94,6 +96,7 @@ public final class MainActivity extends Activity {
           .registerOnBackInvokedCallback(
               android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::onBackPressed);
     }
+    initialiseWelcome();
     openTab(getIntent());
     render();
     connect();
@@ -177,6 +180,7 @@ public final class MainActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
+    resumed = true;
     AccentPalette.apply(this);
     SAGE = AccentPalette.color(this);
     SOFT = AccentPalette.soft(this);
@@ -377,6 +381,10 @@ public final class MainActivity extends Activity {
 
   private void render() {
     if (!alive) return;
+    if (tour != null) {
+      tour.close();
+      tour = null;
+    }
     mini = null;
     miniPlay = null;
     bigPlay = null;
@@ -428,6 +436,7 @@ public final class MainActivity extends Activity {
     }
     updatePlayer();
     lastRender = SystemClock.elapsedRealtime();
+    handler.post(this::maybeGuidance);
   }
 
   private void brand(LinearLayout parent) {
@@ -455,15 +464,19 @@ public final class MainActivity extends Activity {
             INK,
             () -> {
               searchVisible = !searchVisible;
-              if (!searchVisible) query = "";
+              if (!searchVisible) {
+                query = "";
+              }
               render();
             }));
     IconView downloads = icon("download", SAGE, this::downloads);
     downloads.setContentDescription("Downloads");
+    downloads.setTag("tour-downloads");
     top.addView(downloads);
     IconView add = icon("plus", SAGE, this::importMenu);
     add.setBackground(bg(SOFT, 24));
     add.setContentDescription("Import audiobooks");
+    add.setTag("tour-import");
     top.addView(add);
     body.addView(top);
     gap(body, 24);
@@ -773,9 +786,10 @@ public final class MainActivity extends Activity {
     TextView t = label(caption);
     t.setGravity(Gravity.CENTER);
     weight(r, t);
-    r.addView(
-        more != null ? icon("more", INK, more) : new View(this),
-        new LinearLayout.LayoutParams(d(48), d(48)));
+    View options = more != null ? icon("more", INK, more) : new View(this);
+    options.setTag("tour-book-menu");
+    options.setContentDescription("Book options");
+    r.addView(options, new LinearLayout.LayoutParams(d(48), d(48)));
     body.addView(r);
     gap(body, 16);
   }
@@ -991,6 +1005,7 @@ public final class MainActivity extends Activity {
     for (int ci = 0; ci < controls.getChildCount(); ci++)
       if (controls.getChildAt(ci) != bigPlay)
         controls.getChildAt(ci).setLayoutParams(new LinearLayout.LayoutParams(d(40), d(48)));
+    controls.setTag("tour-playback");
     body.addView(controls);
     gap(body, 12);
     addPlayerSummaryCard();
@@ -1003,6 +1018,7 @@ public final class MainActivity extends Activity {
     sleepLabel = (TextView) sleep.getChildAt(1);
     LinearLayout bookmark = tool("Bookmark", "bookmark", this::addBookmark);
     LinearLayout chapters = tool("Chapters", "chapters", this::chaptersMenu);
+    chapters.setTag("tour-chapters");
     for (LinearLayout t : new LinearLayout[] {speed, sleep, bookmark, chapters})
       tools.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
     body.addView(tools);
@@ -1047,6 +1063,7 @@ public final class MainActivity extends Activity {
 
   private void addPlayerSummaryCard() {
     summaryCard = row();
+    summaryCard.setTag("tour-recap");
     summaryCard.setBackground(bg(SOFT, 18));
     pad(summaryCard, 16, 12);
     summaryCard.setMinimumHeight(d(60));
@@ -1181,6 +1198,11 @@ public final class MainActivity extends Activity {
     }
     syncSummaryPosition(book);
     if (recapDialog != null) recapDialog.dismiss();
+    if (welcomeDialog != null) welcomeDialog.dismiss();
+    if (tour != null) {
+      tour.close();
+      tour = null;
+    }
     int recapIndex = summaryChapter;
     recapDialog =
         RecapDialog.show(
@@ -1559,6 +1581,7 @@ public final class MainActivity extends Activity {
       pad(item, 0, 6);
       bar.addView(item, new LinearLayout.LayoutParams(0, -2, 1));
       item.setContentDescription(nav[2] + " tab");
+      item.setTag("tour-" + nav[0]);
       click(
           item,
           () -> {
@@ -1601,6 +1624,11 @@ public final class MainActivity extends Activity {
     gap(body, 24);
     body.addView(label("HELP & EARLY ACCESS"));
     gap(body, 12);
+    setting("Replay quick tour", "A short guide to the main controls", () -> startTour("library"));
+    setting(
+        "Local speech setup",
+        "Optional Whisper model · about 60 MB · works offline",
+        () -> startActivity(new Intent(this, SpeechSettingsActivity.class)));
     setting(
         "Getting started & updates",
         "Samsung setup, file access, backups & the latest APK",
@@ -1721,72 +1749,248 @@ public final class MainActivity extends Activity {
   }
 
   private void bookMenu(Library.Book b) {
-    new AlertDialog.Builder(this)
-        .setTitle(b.title)
-        .setItems(
-            new String[] {
-              "Book details",
-              "Find cover & book details",
-              "Choose a cover from phone",
-              "Edit title & author",
-              "Organize chapters",
-              b.finished ? "Mark as unfinished" : "Mark as finished",
-              "Remove from library"
-            },
-            (dialog, i) -> {
-              switch (i) {
-                case 0:
-                  selected = b;
-                  go("detail");
-                  break;
-                case 1:
-                  searchCover(b);
-                  break;
-                case 2:
-                  coverTarget = b;
-                  Intent intent =
-                      new Intent(Intent.ACTION_OPEN_DOCUMENT)
-                          .setType("image/*")
-                          .addCategory(Intent.CATEGORY_OPENABLE);
-                  startActivityForResult(intent, 103);
-                  break;
-                case 3:
-                  editBook(b);
-                  break;
-                case 4:
-                  organize(b);
-                  break;
-                case 5:
-                  if (currentBook() == b && player != null) player.pause();
-                  b.finished = !b.finished;
-                  lib.save();
-                  render();
-                  break;
-                case 6:
-                  new AlertDialog.Builder(this)
-                      .setTitle("Remove this book?")
-                      .setMessage(
-                          "The book and bookmarks will leave Narrumo. Your original audio files"
-                              + " will stay on your phone.")
-                      .setPositiveButton(
-                          "Remove",
-                          (a, w) -> {
-                            if (currentBook() == b && player != null) {
-                              player.stop();
-                              player.clearMediaItems();
-                              getSharedPreferences("settings", 0).edit().remove("current").apply();
-                            }
-                            lib.books.remove(b);
-                            if (!b.cover.isEmpty()) new File(b.cover).delete();
-                            lib.save();
-                            go("library");
-                          })
-                      .setNegativeButton("Keep book", null)
-                      .show();
-                  break;
-              }
-            })
-        .show();
+    CalmSheet sheet = new CalmSheet(this, "Your library", b.title, b.author);
+    sheet.action(
+        "Book details",
+        false,
+        () -> {
+          selected = b;
+          go("detail");
+        });
+    sheet.action("Find cover & book details", false, () -> searchCover(b));
+    sheet.action(
+        "Choose a cover from phone",
+        false,
+        () -> {
+          coverTarget = b;
+          startActivityForResult(
+              new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                  .setType("image/*")
+                  .addCategory(Intent.CATEGORY_OPENABLE),
+              103);
+        });
+    sheet.action("Edit title & author", false, () -> editBook(b));
+    sheet.action("Organize chapters", false, () -> organize(b));
+    sheet.action(
+        b.finished ? "Mark as unfinished" : "Mark as finished",
+        false,
+        () -> {
+          if (currentBook() == b && player != null) player.pause();
+          b.finished = !b.finished;
+          lib.save();
+          render();
+        });
+    if (screen.equals("player"))
+      sheet.action("Listening screen tour", false, () -> startTour("player"));
+    sheet.space(6);
+    TextView remove = sheet.action("Remove from library", false, () -> removeBook(b));
+    remove.setTextColor(0xff99534b);
+    sheet.action("Close", false, () -> {});
+    sheet.show();
+  }
+
+  private void removeBook(Library.Book b) {
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Your library",
+            "Remove this book?",
+            "The book and bookmarks will leave Narrumo. Your original audio files will stay on your"
+                + " phone.");
+    sheet.action("Keep book", true, () -> {});
+    sheet.action(
+        "Remove from library",
+        false,
+        () -> {
+          if (currentBook() == b && player != null) {
+            player.stop();
+            player.clearMediaItems();
+            getSharedPreferences("settings", 0).edit().remove("current").apply();
+          }
+          lib.books.remove(b);
+          if (!b.cover.isEmpty()) new File(b.cover).delete();
+          lib.save();
+          go("library");
+        });
+    sheet.show();
+  }
+
+  private SharedPreferences guidance() {
+    return getSharedPreferences("welcome", 0);
+  }
+
+  private void initialiseWelcome() {
+    if (guidance().contains("stage")) return;
+    boolean fresh = false;
+    try {
+      android.content.pm.PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+      fresh = info.firstInstallTime == info.lastUpdateTime && lib.books.isEmpty();
+    } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+    }
+    guidance().edit().putString("stage", fresh ? "welcome" : "done").apply();
+  }
+
+  private void maybeGuidance() {
+    if (!alive
+        || !resumed
+        || isFinishing()
+        || welcomeDialog != null
+        || tour != null
+        || !lib.loadError.isEmpty()) return;
+    String stage = guidance().getString("stage", "done");
+    if (stage.equals("welcome")) {
+      CalmSheet sheet =
+          new CalmSheet(
+              this,
+              "Welcome to Narrumo",
+              "Your stories, at home.",
+              "Add local audiobooks, keep your place and revisit the moments that matter.");
+      sheet.text("Optional · clearer offline text", 16, INK).setTypeface(null, Typeface.BOLD);
+      sheet.space(8);
+      sheet.text(
+          "Whisper is an open-source speech-to-text model. A one-time download of about 60 MB lets"
+              + " this phone turn English audiobook audio into punctuated text, with no API charge"
+              + " or audio upload. It uses more memory and battery than Fast, and names can still"
+              + " need corrections.",
+          14,
+          INK);
+      sheet.space(12);
+      sheet.text(
+          "Fast recognition is already included. You can choose Whisper later in Settings → Local"
+              + " speech setup. AI recaps and pictures are separate online features with their own"
+              + " allowance.",
+          13,
+          MUTED);
+      sheet.space(16);
+      sheet.action(
+          "Set up Whisper · about 60 MB",
+          true,
+          () -> {
+            guidance().edit().putString("stage", "tour").putBoolean("welcomed", true).apply();
+            startActivity(
+                new Intent(this, SpeechSettingsActivity.class).putExtra("welcomeSetup", true));
+          });
+      sheet.action(
+          "Keep Fast & show me around",
+          false,
+          () -> {
+            guidance().edit().putBoolean("welcomed", true).apply();
+            startTour("library");
+          });
+      sheet.action(
+          "Skip setup & tour", false, () -> guidance().edit().putString("stage", "done").apply());
+      sheet.dialog.setCancelable(false);
+      welcomeDialog = sheet.dialog;
+      sheet.dialog.setOnDismissListener(d -> welcomeDialog = null);
+      sheet.show();
+    } else if (stage.equals("tour")) {
+      String kind = guidance().getString("active", "library");
+      if (kind.equals("player") && !screen.equals("player")) {
+        guidance().edit().putString("stage", "done").apply();
+        return;
+      }
+      showTour(kind);
+    } else if (screen.equals("player")
+        && guidance().getBoolean("welcomed", false)
+        && !guidance().getBoolean("playerDone", false)) {
+      startTour("player");
+    }
+  }
+
+  private void startTour(String kind) {
+    if (tour != null) {
+      tour.close();
+      tour = null;
+    }
+    guidance()
+        .edit()
+        .putString("stage", "tour")
+        .putString("active", kind)
+        .putInt("step", 0)
+        .apply();
+    if (kind.equals("library") && !screen.equals("library")) go("library");
+    handler.post(
+        () -> {
+          if (alive && resumed && tour == null) showTour(kind);
+        });
+  }
+
+  private void showTour(String kind) {
+    if (kind.equals("library") && !screen.equals("library")) {
+      go("library");
+      return;
+    }
+    List<SpotlightTour.Step> steps =
+        kind.equals("player")
+            ? List.of(
+                new SpotlightTour.Step(
+                    "tour-playback",
+                    "Settle into your story.",
+                    "Play or pause in the centre. The nearby arrows skip back and forward; the"
+                        + " outer arrows change chapters."),
+                new SpotlightTour.Step(
+                    "tour-recap",
+                    "Pick up the thread.",
+                    "Open a recap of the last chapter or choose chapters to summarise. Saved recaps"
+                        + " reopen free. New AI summaries use your server allowance."),
+                new SpotlightTour.Step(
+                    "tour-chapters",
+                    "Find your chapter.",
+                    "Choose a chapter here. Nearby controls change speed, set a sleep timer and"
+                        + " save bookmarks."),
+                new SpotlightTour.Step(
+                    "tour-book-menu",
+                    "Make this book yours.",
+                    "Open book options to change its cover or details, organise chapters and mark"
+                        + " it finished. You can replay this listening tour here."))
+            : List.of(
+                new SpotlightTour.Step(
+                    "tour-import",
+                    "Bring your books.",
+                    "Tap + to add a folder or audio files from your phone. A folder of chapter"
+                        + " files becomes a book. Your original files stay where they are."),
+                new SpotlightTour.Step(
+                    "tour-downloads",
+                    "Keep downloads together.",
+                    "Add a magnet link or torrent file and choose where to save it. Finished"
+                        + " audiobooks can be added to your library."),
+                new SpotlightTour.Step(
+                    "tour-recaps",
+                    "Your AI companion.",
+                    "Choose a book and chapter for recaps, read-along text and graphic scenes."
+                        + " Local transcription is free; online AI has a shared test allowance."),
+                new SpotlightTour.Step(
+                    "tour-settings",
+                    "Make yourself at home.",
+                    "Change your accent colour, set up local Whisper, manage backups or replay this"
+                        + " tour. Open a book to start listening; a short player tour will guide"
+                        + " you there."));
+    // Never leave an unanchored tooltip over an unrelated screen.
+    if (steps.stream().anyMatch(s -> root.findViewWithTag(s.target()) == null)) return;
+    tour =
+        new SpotlightTour(
+            this,
+            root,
+            root::findViewWithTag,
+            steps,
+            guidance().getInt("step", 0),
+            step -> guidance().edit().putInt("step", step).apply(),
+            () -> {
+              tour = null;
+              guidance()
+                  .edit()
+                  .putString("stage", "done")
+                  .putInt("step", 0)
+                  .putBoolean(kind.equals("player") ? "playerDone" : "libraryDone", true)
+                  .apply();
+              scroll.smoothScrollTo(0, 0);
+            });
+  }
+
+  @Override
+  protected void onPause() {
+    resumed = false;
+    super.onPause();
   }
 
   private void editBook(Library.Book b) {
@@ -2284,6 +2488,10 @@ public final class MainActivity extends Activity {
 
   @Override
   public void onBackPressed() {
+    if (tour != null) {
+      tour.finish();
+      return;
+    }
     if (screen.equals("player")) go("library");
     else if (screen.equals("detail")) go("library");
     else if (!screen.equals("library")) go("library");

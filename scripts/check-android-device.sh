@@ -7,7 +7,7 @@ adb shell svc wifi disable
 pull_screens() {
   set +e
   mkdir -p app/build/reports/device-screenshots
-  for name in library player downloads widget sound backup appearance ai-lab transcript chapter-summaries recap-sheet ai-studio ai-passage; do
+  for name in library player downloads widget sound backup appearance ai-lab transcript chapter-summaries recap-sheet ai-studio ai-passage welcome tour-library tour-settings tour-player book-menu; do
     adb pull "/sdcard/morrow-$name.png" "app/build/reports/device-screenshots/$name.png" >/dev/null 2>&1
   done
 }
@@ -21,4 +21,13 @@ capture_screens() {
   exit "$status"
 }
 trap capture_screens EXIT
-./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest
+# Exercise first-use UI in a fresh process before native speech/audio/torrent
+# fixtures leave a playback session behind. Retain both sets of device results.
+./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.morrow.audio.WelcomeIntegrationTest
+mkdir -p app/build/reports/onboarding-device
+cp -R app/build/reports/androidTests app/build/reports/onboarding-device/
+cp -R app/build/outputs/androidTest-results app/build/reports/onboarding-device/
+adb shell am force-stop com.morrow.audio
+./gradlew --no-daemon -Dorg.gradle.jvmargs=-Xmx768m connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.notClass=com.morrow.audio.WelcomeIntegrationTest
