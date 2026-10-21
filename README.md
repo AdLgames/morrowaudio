@@ -1,6 +1,6 @@
 # Narrumo
 
-Formerly Morrow Audio. Version 2.0.0 (build 15) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
+Formerly Morrow Audio. Version 2.0.1 (build 16) installs over existing Morrow Audio releases: keep the installed app to retain your library, progress, widget and private AI connection. The Android application ID, signing certificate, backup format and existing server URL remain compatible. Existing `.morrow.zip` backups are supported. The GitHub repository retains its original address.
 
 A calm, local audiobook library for Android. Warm paper, sage controls, soft abstract covers, and readable serif headings, inspired by the simplicity of Apple Books. Native Android Java UI with Media3 background playback; no account or media server required.
 
@@ -9,6 +9,10 @@ A calm, local audiobook library for Android. Warm paper, sage controls, soft abs
 Download the latest signed APK from the [Narrumo website](https://morrow-audio.aptnote8.chatgpt.site/#download), open it on your phone, and allow **Install unknown apps** for the browser or file manager you used. Android 8.0 or newer is required. If Samsung Auto Blocker blocks sideloading, its setting may need adjusting before installation. The downloadable APK is release-signed for sideloading. A private signing-key backup is supplied separately; keep it to sign future updates without losing app data. Never upload that backup to the repository. Play Store publication requires your own developer account and signing setup.
 
 Open Narrumo and select **Add an audiobook folder**. In Samsung's file picker, select the folder containing your books and tap **Use this folder**. Android may prevent access to a storage root, the Downloads root, or Android/data: select a dedicated Audiobooks folder instead. Individual audio files can also be selected. Grant notification access when requested for convenient playback controls.
+
+## A quieter chapter studio (2.0.1)
+
+The main illustration card has two choices: **Illustrate a passage** and **Let AI illustrate the chapter**. Passage previews, selection changes and picture-count controls appear only after choosing Passage. The top-right **•••** menu groups Transcription (including speech quality, rebuild/restore and import/export), Text & book words (ask, recap and reviewed spellings), Saved chapter pictures, Allowance & privacy and AI connection settings. A free transcription shortcut appears when there is no heard transcript; active processing keeps a Stop control visible. Existing saved text, pictures and listening progress remain compatible.
 
 ## Desktop listening room (2.0.0)
 

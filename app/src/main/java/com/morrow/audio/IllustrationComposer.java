@@ -27,12 +27,19 @@ final class IllustrationComposer {
   private final Handler handler = new Handler(Looper.getMainLooper());
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   final LinearLayout view;
-  private final TextView preview, allowance, state, generate, pick, auto, use, keep, reselect;
-  private final LinearLayout pictures;
+  private final TextView preview,
+      allowance,
+      state,
+      generate,
+      keep,
+      reselect,
+      passageAction,
+      chapterAction;
+  private final LinearLayout pictures, passagePanel;
   private final Spinner count;
   private JSONArray passage = new JSONArray();
   private String sourceIdentity = "";
-  private boolean alive = true, busy, accepted;
+  private boolean alive = true, busy, accepted, passageOpen;
   private Dialog dialog;
   private boolean planningWhole;
 
@@ -59,51 +66,42 @@ final class IllustrationComposer {
     view.setContentDescription("Chapter illustration composer");
     activity.pad(view, 18, 20);
     view.setBackground(activity.bg(activity.SOFT, 22));
-    view.addView(activity.serif("Illustrate this chapter", 25));
+    view.addView(activity.serif("A chapter, illustrated.", 25));
     activity.gap(view, 8);
-    TextView intro =
+    view.addView(
         activity.text(
-            "1. Choose chapter or passage  ·  2. Review story moments  ·  3. Create pictures",
-            12,
-            CalmActivity.MUTED);
-    view.addView(intro);
+            "Choose a moment, or let AI tell the chapter in pictures.", 13, CalmActivity.MUTED));
+    activity.gap(view, 16);
+    passageAction = activity.button("Illustrate a passage", false, this::openPassage);
+    passageAction.setContentDescription("Illustrate a passage");
+    view.addView(passageAction);
+    activity.gap(view, 10);
+    chapterAction = activity.button("Let AI illustrate the chapter", true, this::wholeChapter);
+    chapterAction.setContentDescription("Let AI illustrate the chapter");
+    view.addView(chapterAction);
     activity.gap(view, 12);
-    view.addView(activity.button("Whole chapter · let AI storyboard", false, this::wholeChapter));
-    activity.gap(view, 14);
+    passagePanel = activity.col();
+    passagePanel.setContentDescription("Passage illustration controls");
+    passagePanel.setVisibility(View.GONE);
+    view.addView(passagePanel);
     preview = activity.text("", 14, CalmActivity.INK);
     preview.setTextIsSelectable(true);
     preview.setContentDescription("Selected illustration passage");
     preview.setLineSpacing(activity.d(4), 1);
-    view.addView(preview);
-    activity.gap(view, 12);
+    passagePanel.addView(preview);
+    activity.gap(passagePanel, 12);
     keep = activity.button("Keep this passage", true, this::keepPassage);
     keep.setContentDescription("Keep illustration passage");
-    view.addView(keep);
-    activity.gap(view, 8);
-    reselect = activity.button("Select another passage", false, this::selectAnother);
-    view.addView(reselect);
-    activity.gap(view, 8);
-    use = activity.button("Use my selected transcript text", false, () -> choose(selected.get()));
-    use.setContentDescription("Use transcript selection for illustration");
-    view.addView(use);
-    activity.gap(view, 8);
-    pick = activity.button("Suggest another passage · free", false, () -> suggest(true));
-    view.addView(pick);
-    activity.gap(view, 8);
-    auto = activity.button("Let AI choose a key moment", false, this::askToChoose);
-    view.addView(auto);
-    activity.gap(view, 10);
-    view.addView(
-        activity.text(
-            "To change the passage, long-press the transcript above and choose Use for"
-                + " illustration. You can also select text and tap the button here.",
-            12,
-            CalmActivity.MUTED));
-    activity.gap(view, 16);
+    passagePanel.addView(keep);
+    activity.gap(passagePanel, 8);
+    reselect = activity.button("Change passage  ▾", false, this::passageMenu);
+    reselect.setContentDescription("Change illustration passage");
+    passagePanel.addView(reselect);
+    activity.gap(passagePanel, 12);
     pictures = activity.col();
     pictures.setContentDescription("Illustration picture options");
     pictures.setVisibility(View.GONE);
-    view.addView(pictures);
+    passagePanel.addView(pictures);
     pictures.addView(activity.text("HOW MANY PICTURES?", 11, activity.SAGE));
     activity.gap(pictures, 8);
     count = new Spinner(activity);
@@ -122,22 +120,49 @@ final class IllustrationComposer {
     generate.setContentDescription("Review chapter illustrations");
     pictures.addView(generate);
     activity.gap(view, 10);
-    state =
-        activity.text(
-            "Graphic-novel artwork · medium quality · each picture is a four-panel page.",
-            12,
-            CalmActivity.MUTED);
+    state = activity.text("", 12, CalmActivity.MUTED);
+    state.setVisibility(View.GONE);
     view.addView(state);
-    activity.gap(view, 12);
-    view.addView(activity.button("View this chapter’s saved pictures", false, this::openGallery));
   }
 
-  private void openGallery() {
+  void openGallery() {
     activity.startActivity(
         new Intent(activity, ChapterSummariesActivity.class)
             .putExtra("book", book.id)
             .putExtra("chapter", chapter.getAsInt())
             .putExtra("scenes", true));
+  }
+
+  private void openPassage() {
+    if (busy) return;
+    if (passageOpen) {
+      passageOpen = false;
+      accepted = false;
+      highlight.accept(new JSONArray());
+      refresh();
+      return;
+    }
+    passageOpen = true;
+    if (passage.length() == 0) suggest(false);
+    highlight.accept(passage);
+    refresh();
+    reveal();
+  }
+
+  private void passageMenu() {
+    JSONArray selection = selected.get();
+    CalmSheet sheet =
+        new CalmSheet(
+            activity,
+            "Illustrate a passage",
+            "Choose your moment",
+            "Suggestions are free unless you explicitly ask AI to choose.");
+    sheet.action("Select another passage in the transcript", false, this::selectAnother);
+    sheet.action("Use my selected transcript text", false, () -> choose(selection));
+    sheet.action("Suggest another passage · free", false, () -> suggest(true));
+    sheet.action("Let AI choose a key moment", false, this::askToChoose);
+    sheet.action("Done", false, () -> {});
+    dialog = sheet.show();
   }
 
   private void keepPassage() {
@@ -148,19 +173,21 @@ final class IllustrationComposer {
         .post(
             () ->
                 ((ScrollView) activity.body.getParent())
-                    .smoothScrollTo(0, view.getTop() + pictures.getTop()));
+                    .smoothScrollTo(0, view.getTop() + passagePanel.getTop() + pictures.getTop()));
   }
 
   private void selectAnother() {
     if (busy) return;
     accepted = false;
+    passageOpen = true;
     refresh();
     state.setText(
-        "Select text above, then tap Use my selected transcript text. No request is sent.");
+        "Hold the transcript text above, then choose Use for illustration. No request is sent.");
     activity.selectIllustrationPassage();
   }
 
   private void anotherPicture() {
+    passageOpen = true;
     accepted = false;
     count.setSelection(0);
     state.setText(
@@ -193,6 +220,7 @@ final class IllustrationComposer {
       sourceIdentity = current;
       passage = new JSONArray();
       accepted = false;
+      passageOpen = false;
       if (!busy) suggest(false);
     }
     if (passage.length() > 0 && !valid(passage)) {
@@ -210,14 +238,16 @@ final class IllustrationComposer {
             ? "Up to 3 shared image attempts per UTC day. Check the live allowance in AI."
             : usage.optInt("imagesRemaining", 3)
                 + " of 3 image attempts left · shared server · resets midnight UTC");
-    pictures.setVisibility(accepted ? View.VISIBLE : View.GONE);
+    passagePanel.setVisibility(passageOpen ? View.VISIBLE : View.GONE);
+    pictures.setVisibility(passageOpen && accepted ? View.VISIBLE : View.GONE);
+    state.setVisibility(state.getText().length() > 0 ? View.VISIBLE : View.GONE);
+    passageAction.setText(passageOpen ? "Hide passage options  ▴" : "Illustrate a passage");
+    passageAction.setEnabled(!busy);
+    chapterAction.setEnabled(!busy);
     keep.setEnabled(!busy && valid(passage));
     keep.setText(accepted ? "Passage selected · choose pictures below" : "Keep this passage");
     reselect.setEnabled(!busy);
     generate.setEnabled(!busy && accepted && valid(passage));
-    pick.setEnabled(!busy);
-    auto.setEnabled(!busy);
-    use.setEnabled(!busy);
     count.setEnabled(!busy);
     if (dialog != null
         && dialog.isShowing()
@@ -254,6 +284,7 @@ final class IllustrationComposer {
         return;
       }
       accepted = false;
+      passageOpen = true;
       passage = new JSONArray(cues.toString());
       highlight.accept(passage);
       refresh();
@@ -295,7 +326,7 @@ final class IllustrationComposer {
       if (text(value).length() > 2500) return;
       accepted = false;
       passage = value;
-      highlight.accept(passage);
+      if (passageOpen) highlight.accept(passage);
       if (another) {
         state.setText(
             "Suggested locally from this chapter. Review or change the text before creating.");

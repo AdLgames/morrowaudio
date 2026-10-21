@@ -55,6 +55,11 @@ public class CarLibraryIntegrationTest {
           library.books.add(book);
           library.save();
         });
+    // This controller belongs to our own app UID, not the privileged Android Auto host.
+    // Android 15 requires that UID to be foreground before it can acquire audio focus.
+    android.app.Activity phone =
+        i.startActivitySync(
+            new Intent(ctx, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     MediaBrowser browser =
         call(
             i,
@@ -199,6 +204,7 @@ public class CarLibraryIntegrationTest {
             browser.release();
             library.books.remove(book);
             library.save();
+            phone.finish();
           });
       cover.delete();
     }

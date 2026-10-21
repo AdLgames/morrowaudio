@@ -30,6 +30,20 @@ final class CompanionClient {
       throw new IOException(
           "Connect your private server in AI → AI settings first. Use a Narrumo access"
               + " token, never an OpenAI key.");
+    if (route.equals("/companion")
+        && input != null
+        && ("storyboard".equals(input.optString("action"))
+            || ("comic".equals(input.optString("action")) && input.has("scene")))) {
+      JSONObject usage = request("/chapter-usage", new JSONObject(), null);
+      JSONObject features = usage.optJSONObject("features");
+      if (features == null || features.optInt("storyboard", 0) < 1)
+        throw new IOException(
+            "Your AI server still needs the chapter storyboard update. Your transcript is saved. No"
+                + " storyboard or image request was sent, and no AI allowance was used. Ask the"
+                + " server owner to deploy the latest Narrumo backend; reinstalling the app will"
+                + " not update the server.");
+    }
+    if (Thread.currentThread().isInterrupted()) throw new IOException("Cancelled");
     String path = endpoint.getPath();
     if (!path.endsWith("/ai")) throw new IOException("The saved server address must end in /ai");
     URL target =
@@ -83,6 +97,18 @@ final class CompanionClient {
                   "The daily allowance or this chapter’s attempt is used up. Chapters: 25 attempts;"
                       + " other text: 20; audio: 30 minutes; images: 3 attempts. Resets at midnight"
                       + " UTC.";
+              case 400 ->
+                  route.equals("/companion")
+                          && input != null
+                          && "storyboard".equals(input.optString("action"))
+                      ? "The server rejected this chapter storyboard. Check that its backend is up"
+                          + " to date and the whole chapter has been heard and transcribed. No"
+                          + " storyboard allowance was reserved."
+                      : "The server did not accept this transcript. Check the selected text and"
+                          + " listening position.";
+              case 413 ->
+                  "This transcript is too large. Select a shorter passage; no AI allowance was"
+                      + " used.";
               case 503 -> "The private server needs its AI configuration checked.";
               default ->
                   "The AI request could not finish. It will not retry automatically; failed"

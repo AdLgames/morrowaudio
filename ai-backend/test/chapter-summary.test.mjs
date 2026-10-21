@@ -84,3 +84,9 @@ test('versioned context is part of the cache identity; interrupted lookup never 
  assert.equal((await handleRequest(request({...b,lookupOnly:true}),env,invoke)).status,200);assert.equal(calls,1);
  assert.equal((await handleRequest(request({...body(),lookupOnly:true}),env,invoke)).status,404);assert.equal(calls,1);
 });
+
+
+test('usage advertises installed storyboard support without a provider call or reservation',async()=>{
+ const env=config();let calls=0;const response=await handleRequest(usageRequest(),env,async()=>{calls++;throw Error('No provider expected');});
+ assert.equal(response.status,200);assert.deepEqual((await response.json()).features,{storyboard:1});assert.equal(calls,0);assert.equal(env.data.get('usage'),undefined);assert.equal(env.data.get('chapter-usage'),undefined);assert.equal(env.data.get('image-usage'),undefined);
+});

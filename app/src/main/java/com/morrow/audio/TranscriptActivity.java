@@ -25,14 +25,7 @@ public final class TranscriptActivity extends CalmActivity {
   private int chapter;
   private TranscriptStore store;
   private TranscriptStore.Data data;
-  private TextView status,
-      transcript,
-      result,
-      chapterButton,
-      generate,
-      cancelLocal,
-      vocabularyButton,
-      originalButton;
+  private TextView status, transcript, result, chapterButton, generate, cancelLocal;
   private BookWordGuide.Saved wordGuide;
   private File wordGuideFile;
   private boolean localTranscribing;
@@ -49,6 +42,7 @@ public final class TranscriptActivity extends CalmActivity {
   private final List<Line> lines = new ArrayList<>();
   private IllustrationComposer illustrations;
   private JSONArray illustrationSelection = new JSONArray();
+  private JSONArray menuSelection = new JSONArray();
   private File exportImage;
   private int importChapter, exportChapter;
   private JSONArray displayedEvidence;
@@ -88,17 +82,14 @@ public final class TranscriptActivity extends CalmActivity {
     } catch (Exception e) {
       tell("Could not read the book word guide. Your original transcript is kept.");
     }
-    screen("Chapter studio.", "AI · transcript, illustrations & book words");
-    TextView hint =
-        text(
-            "Completed lines appear as you listen. Transcribe English on this phone for free."
-                + " Choose a passage below for optional illustrations. Long-press text to change"
-                + " the selection.",
-            13,
-            MUTED);
-    hint.setLineSpacing(d(3), 1);
-    body.addView(hint);
-    gap(body, 16);
+    screen("Chapter studio.", book.title);
+    LinearLayout header = (LinearLayout) body.getChildAt(0);
+    header.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+    TextView more = text("•••", 20, SAGE);
+    more.setGravity(Gravity.CENTER);
+    more.setContentDescription("Chapter studio menu");
+    more.setOnClickListener(v -> studioMenu());
+    header.addView(more, new LinearLayout.LayoutParams(d(48), d(48)));
     chapterButton = button("", false, this::chooseChapter);
     body.addView(chapterButton);
     gap(body, 12);
@@ -135,26 +126,6 @@ public final class TranscriptActivity extends CalmActivity {
     generate = button("Transcribe on this phone · free", false, this::transcribe);
     generate.setContentDescription("Create offline English transcript");
     body.addView(generate);
-    gap(body, 12);
-    body.addView(
-        text(
-            "Free offline English transcription · no audio upload. Scroll the text; hold to"
-                + " select.",
-            12,
-            MUTED));
-    gap(body, 12);
-    body.addView(
-        button(
-            "Speech quality & book spellings",
-            false,
-            () ->
-                startActivity(
-                    new Intent(this, SpeechSettingsActivity.class).putExtra("book", book.id))));
-    gap(body, 12);
-    body.addView(
-        button("Rebuild this chapter’s transcript", false, () -> rebuildTranscript(false)));
-    gap(body, 8);
-    body.addView(button("Restore previous transcript", false, () -> rebuildTranscript(true)));
     gap(body, 12);
     transcript = text("", 17, INK);
     transcript.setTextIsSelectable(true);
@@ -230,117 +201,15 @@ public final class TranscriptActivity extends CalmActivity {
               }
             });
     body.addView(illustrations.view);
-    gap(body, 18);
-    body.addView(
-        button(
-            "Ask about selected transcript text",
-            false,
-            () -> {
-              JSONArray chosen = selectedCues();
-              if (chosen.length() == 0)
-                tell("Long-press the transcript and select a passage, then tap Ask.");
-              else ask(chosen);
-            }));
-    gap(body, 12);
-    body.addView(
-        button(
-            "Catch me up · concise recap",
-            true,
-            () -> {
-              try {
-                confirm("recap", recentCues(), "");
-              } catch (Exception e) {
-                tell(e.getMessage());
-              }
-            }));
-    gap(body, 12);
-
-    body.addView(
-        text(
-            "Offline English · no audio upload or API charges. Upgrade to Accurate in Speech"
-                + " quality for punctuation and book spelling hints. Fast remains available. Names"
-                + " can still be misheard.",
-            13,
-            MUTED));
-    gap(body, 12);
-    vocabularyButton = button("Book words · optional AI guide", false, this::bookWords);
-    vocabularyButton.setContentDescription("Review book-specific word guide");
-    body.addView(vocabularyButton);
-    originalButton = button("Show original transcript", false, this::toggleOriginal);
-    originalButton.setContentDescription("Toggle original transcript");
-    body.addView(originalButton);
-    body.addView(
-        text(
-            "A tiny AI guide suggests names and pronunciation hints from heard text. Review each"
-                + " spelling before using it. Approved corrections run locally; the original is"
-                + " kept. This does not train the speech model.",
-            13,
-            MUTED));
-    cancelLocal =
-        button(
-            "Cancel transcription",
-            false,
-            () -> {
-              cancelRequested = true;
-              workMessage = "Stopping transcription…";
-              cancelLocal.setEnabled(false);
-              Thread thread = jobThread;
-              if (thread != null) thread.interrupt();
-              render();
-            });
+    cancelLocal = button("Stop transcription", false, this::cancelTranscription);
     cancelLocal.setVisibility(View.GONE);
     body.addView(cancelLocal);
-    gap(body, 12);
-    body.addView(
-        button(
-            "Import timed text · SRT / VTT",
-            false,
-            () -> {
-              importChapter = chapter;
-              startActivityForResult(
-                  new Intent(Intent.ACTION_OPEN_DOCUMENT)
-                      .setType("*/*")
-                      .addCategory(Intent.CATEGORY_OPENABLE),
-                  71);
-            }));
-    gap(body, 12);
-    body.addView(
-        button(
-            "Export this chapter’s original transcript",
-            false,
-            () -> {
-              exportChapter = chapter;
-              startActivityForResult(
-                  new Intent(Intent.ACTION_CREATE_DOCUMENT)
-                      .setType("application/x-subrip")
-                      .addCategory(Intent.CATEGORY_OPENABLE)
-                      .putExtra(Intent.EXTRA_TITLE, "Narrumo-chapter-" + (chapter + 1) + ".srt"),
-                  72);
-            }));
-    gap(body, 12);
-    body.addView(button("Saved comic pages", false, this::savedPages));
-    gap(body, 20);
-    result =
-        text(
-            "Recaps cover available transcript excerpts, which may have gaps. AI can make mistakes;"
-                + " compare the quoted text.",
-            14,
-            MUTED);
+    result = text("", 14, MUTED);
     result.setTextIsSelectable(true);
     result.setLineSpacing(d(5), 1);
+    result.setVisibility(View.GONE);
     body.addView(result);
-    gap(body, 24);
-    note(
-        "Offline transcription has no daily allowance. Optional AI test limits · 20 text requests"
-            + " and 3 medium-quality square comic pages per day across the private server. A page"
-            + " has four panels. Failed"
-            + " attempts count. Requests never retry automatically. Transcripts and pages stay on"
-            + " this device and are not in library backups; use Export to keep a copy.");
-    body.addView(
-        button(
-            "AI connection settings",
-            false,
-            () -> startActivity(new Intent(this, AiTrialActivity.class))));
+    gap(body, 16);
     LinearLayout studioNav = row();
     pad(studioNav, 16, 6);
     studioNav.addView(
@@ -388,9 +257,186 @@ public final class TranscriptActivity extends CalmActivity {
           String tool = getIntent().getStringExtra("tool");
           if ("illustrate".equals(tool))
             ((ScrollView) body.getParent()).smoothScrollTo(0, illustrations.view.getTop());
-          else if ("words".equals(tool))
-            ((ScrollView) body.getParent()).smoothScrollTo(0, vocabularyButton.getTop());
+          else if ("words".equals(tool)) bookWords();
         });
+  }
+
+  private void studioMenu() {
+    menuSelection = selectedCues();
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Chapter studio",
+            "Tools & settings",
+            "Your transcript and pictures stay with this chapter.");
+    sheet.action("Transcription", false, this::transcriptionMenu);
+    sheet.action("Text & book words", false, this::textMenu);
+    sheet.action("Saved chapter pictures", false, this::pictureMenu);
+    sheet.action("Allowance & privacy", false, this::usageMenu);
+    sheet.action(
+        "AI connection settings",
+        false,
+        () -> startActivity(new Intent(this, AiTrialActivity.class)));
+    sheet.action("Done", false, () -> {});
+    sheet.show();
+  }
+
+  private void pictureMenu() {
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Chapter studio",
+            "Saved pictures",
+            "Open the chapter gallery or export a saved picture as JPEG.");
+    sheet.action("View chapter gallery", true, () -> illustrations.openGallery());
+    sheet.action("Export a saved picture", false, this::savedPages);
+    sheet.action("Done", false, () -> {});
+    sheet.show();
+  }
+
+  private void transcriptionMenu() {
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Chapter studio",
+            "Transcription",
+            "Recognition runs on your phone. Audio is not uploaded.");
+    if (localTranscribing) sheet.action("Stop transcription", false, this::cancelTranscription);
+    else sheet.action("Transcribe on this phone · free", true, this::transcribe).setEnabled(!busy);
+    sheet.action(
+        "Speech quality & book spellings",
+        false,
+        () ->
+            startActivity(
+                new Intent(this, SpeechSettingsActivity.class).putExtra("book", book.id)));
+    sheet
+        .action("Rebuild this chapter’s transcript", false, () -> rebuildTranscript(false))
+        .setEnabled(!busy);
+    sheet
+        .action("Restore previous transcript", false, () -> rebuildTranscript(true))
+        .setEnabled(!busy);
+    sheet.action("Import timed text · SRT / VTT", false, this::importTranscript).setEnabled(!busy);
+    sheet.action("Export original transcript", false, this::exportTranscript);
+    sheet.action("Done", false, () -> {});
+    sheet.show();
+  }
+
+  private void textMenu() {
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Chapter studio",
+            "Text & book words",
+            "Select transcript text to ask a question or recap a passage.");
+    sheet
+        .action(
+            "Ask about selected text",
+            false,
+            () -> {
+              JSONArray chosen = menuSelection;
+              if (chosen.length() == 0)
+                tell(
+                    "Long-press the transcript and select a passage, then open Text & book words →"
+                        + " Ask.");
+              else ask(chosen);
+            })
+        .setEnabled(!busy);
+    sheet
+        .action(
+            "Catch me up · concise recap",
+            false,
+            () -> {
+              try {
+                confirm("recap", recentCues(), "");
+              } catch (Exception e) {
+                tell(e.getMessage());
+              }
+            })
+        .setEnabled(!busy);
+    sheet
+        .action(
+            wordGuide == null
+                ? "Book words · optional AI guide"
+                : "Book words · review saved guide",
+            false,
+            this::bookWords)
+        .setContentDescription("Review book-specific word guide");
+    if (wordGuide != null && stillHeard(wordGuide.evidence()) && !wordGuide.approved().isEmpty())
+      sheet
+          .action(
+              wordGuide.original() ? "Show reviewed book spellings" : "Show original transcript",
+              false,
+              this::toggleOriginal)
+          .setContentDescription("Toggle original transcript");
+    sheet.action("Done", false, () -> {});
+    sheet.show();
+  }
+
+  private void usageMenu() {
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Private test",
+            "Allowance & privacy",
+            "Offline transcription and saved pictures are free to reopen.");
+    JSONObject usage = ChapterAllowance.cached(this);
+    sheet.text(
+        usage == null
+            ? "Shared per UTC day: 25 chapter recaps, 20 other text requests and 3 medium-quality"
+                + " images."
+            : usage.optInt("remaining", 25)
+                + " chapter recap attempts left · "
+                + usage.optInt("imagesRemaining", 3)
+                + " image attempts left (last checked). Other text has a separate 20-attempt daily"
+                + " limit.",
+        14,
+        INK);
+    sheet.space(12);
+    sheet.text(
+        "Failed AI attempts count; requests never retry automatically. Each image is a four-panel"
+            + " graphic-novel page. Names and wording may need review. Transcripts and pictures"
+            + " stay in private device storage and are excluded from library backups; export them"
+            + " separately to keep a copy.",
+        13,
+        MUTED);
+    sheet.action(
+        "View live allowance in AI",
+        false,
+        () ->
+            startActivity(
+                new Intent(this, ChapterSummariesActivity.class)
+                    .putExtra("book", book.id)
+                    .putExtra("chapter", chapter)));
+    sheet.action("Done", false, () -> {});
+    sheet.show();
+  }
+
+  private void importTranscript() {
+    importChapter = chapter;
+    startActivityForResult(
+        new Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .setType("*/*")
+            .addCategory(Intent.CATEGORY_OPENABLE),
+        71);
+  }
+
+  private void exportTranscript() {
+    exportChapter = chapter;
+    startActivityForResult(
+        new Intent(Intent.ACTION_CREATE_DOCUMENT)
+            .setType("application/x-subrip")
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .putExtra(Intent.EXTRA_TITLE, "Narrumo-chapter-" + (chapter + 1) + ".srt"),
+        72);
+  }
+
+  private void cancelTranscription() {
+    cancelRequested = true;
+    workMessage = "Stopping transcription…";
+    cancelLocal.setEnabled(false);
+    Thread thread = jobThread;
+    if (thread != null) thread.interrupt();
+    render();
   }
 
   private boolean playingThisBook() {
@@ -450,6 +496,7 @@ public final class TranscriptActivity extends CalmActivity {
               follow = false;
               displayedEvidence = null;
               result.setText("");
+              result.setVisibility(View.GONE);
               loadChapter();
               dialog.dismiss();
             })
@@ -475,34 +522,17 @@ public final class TranscriptActivity extends CalmActivity {
     }
     long limit = chapterCutoff();
     List<TranscriptTimeline.Cue> heard = TranscriptTimeline.heard(data.cues(), limit);
-    boolean guideReached = wordGuide != null && stillHeard(wordGuide.evidence());
     List<BookVocabulary.Entry> corrections = activeCorrections();
-    vocabularyButton.setEnabled(!busy);
-    vocabularyButton.setText(
-        wordGuide == null ? "Book words · optional AI guide" : "Book words · review saved guide");
-    originalButton.setVisibility(
-        guideReached && !wordGuide.approved().isEmpty() ? View.VISIBLE : View.GONE);
-    originalButton.setText(
-        wordGuide != null && wordGuide.original()
-            ? "Show reviewed book spellings"
-            : "Show original transcript");
+    generate.setVisibility(heard.isEmpty() && !busy ? View.VISIBLE : View.GONE);
     long coverage = TranscriptTimeline.nextStart(data.ranges(), limit);
     status.setText(
-        "Chapter "
-            + (chapter + 1)
-            + " · text through "
-            + Library.clock(limit)
-            + "\n"
-            + heard.size()
-            + " completed lines"
-            + (corrections.isEmpty() ? " · original text" : " · reviewed book spellings")
-            + " · processed timeline through "
-            + Library.clock(coverage)
-            + (busy
-                ? "\n"
-                    + (workMessage.isEmpty() ? "Working…" : workMessage)
-                    + " Please keep this screen open."
-                : ""));
+        (busy
+            ? (workMessage.isEmpty() ? "Working…" : workMessage)
+            : heard.isEmpty()
+                ? "No heard text yet · prepare it below or open •••"
+                : "Transcript through "
+                    + Library.clock(coverage)
+                    + (corrections.isEmpty() ? "" : " · reviewed spellings")));
     StringBuilder text = new StringBuilder();
     lines.clear();
     int size = 0, first = heard.size();
@@ -833,6 +863,7 @@ public final class TranscriptActivity extends CalmActivity {
             + "\n\nFrom the transcript:\n“"
             + String.join("”\n“", answer.quotes())
             + "”\n\nBased only on available source excerpts.");
+    result.setVisibility(View.VISIBLE);
     result.setTextColor(INK);
     ((ScrollView) body.getParent())
         .post(() -> ((ScrollView) body.getParent()).smoothScrollTo(0, result.getTop()));
@@ -855,11 +886,11 @@ public final class TranscriptActivity extends CalmActivity {
             restore ? "Restore the previous text?" : "Rebuild heard text?",
             restore
                 ? "Replaces current transcript text with the preserved previous version. The"
-                      + " chapter recap will need regenerating."
+                    + " chapter recap will need regenerating."
                 : "Preserves the current transcript as the previous version, then clears it for new"
-                      + " recognition. Choose Accurate and save book spellings first for better"
-                      + " results. You can restore the previous text. The chapter recap will need"
-                      + " regenerating.");
+                    + " recognition. Choose Accurate and save book spellings first for better"
+                    + " results. You can restore the previous text. The chapter recap will need"
+                    + " regenerating.");
     sheet.action(
         restore ? "Restore previous transcript" : "Rebuild with current recogniser",
         true,
@@ -885,7 +916,7 @@ public final class TranscriptActivity extends CalmActivity {
                               restore
                                   ? "Previous transcript restored."
                                   : "Ready to transcribe again. Tap Transcribe on this phone, or"
-                                        + " select the chapter in AI for background processing.");
+                                      + " select the chapter in AI for background processing.");
                         }
                       });
                 }));

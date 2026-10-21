@@ -35,7 +35,7 @@ export async function chapterUsage(request,env){
   if(!(request.headers.get('Content-Type')||'').startsWith('application/json'))throw new Error();
   const body=await parse(request,1024);if(!body||typeof body!=='object'||Array.isArray(body))throw new Error();
  }catch{return json({error:'JSON required'},400);}
- try{return await budget(env,'chapter-usage',{});}catch{return json({error:'Usage control unavailable'},503);}
+ try{const response=await budget(env,'chapter-usage',{});if(!response.ok)return response;return json({...await response.json(),features:{storyboard:1}});}catch{return json({error:'Usage control unavailable'},503);}
 }
 export async function chapterSummary(request,env,fetchImpl){
  let input,lookupOnly=false;
