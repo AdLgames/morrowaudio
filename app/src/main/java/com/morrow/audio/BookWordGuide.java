@@ -74,6 +74,56 @@ final class BookWordGuide {
     return new Saved(entries, Set.copyOf(approved), cues, saved.optBoolean("original", false));
   }
 
+  /** Reviewed names are context, never a replacement for the quoted source transcript. */
+  static JSONArray reviewedContext(TranscriptStore store, Library.Book book, JSONArray cues)
+      throws Exception {
+    int chapter = -1;
+    long position = 0;
+    for (int n = 0; n < cues.length(); n++) {
+      JSONObject cue = cues.getJSONObject(n);
+      int index = cue.getInt("chapter");
+      if (index > chapter) {
+        chapter = index;
+        position = cue.getLong("endMs");
+      } else if (index == chapter) position = Math.max(position, cue.getLong("endMs"));
+    }
+    return reviewedContext(store, book, cues, chapter, position);
+  }
+
+  static JSONArray reviewedContext(
+      TranscriptStore store, Library.Book book, JSONArray cues, int chapter, long position)
+      throws Exception {
+    JSONArray context = new JSONArray();
+    Saved guide;
+    try {
+      guide = load(path(store, book));
+    } catch (Exception unreadableOptionalGuide) {
+      // A damaged optional spelling guide must not block the original transcript or AI actions.
+      return context;
+    }
+    if (guide == null) return context;
+    for (int n = 0; n < guide.evidence().length(); n++) {
+      JSONObject cue = guide.evidence().getJSONObject(n);
+      int index = cue.getInt("chapter");
+      if (index > chapter || (index == chapter && cue.getLong("endMs") > position)) return context;
+    }
+    StringBuilder source = new StringBuilder();
+    for (int n = 0; n < cues.length(); n++)
+      source.append(cues.getJSONObject(n).getString("text")).append('\n');
+    int characters = 0, words = 0;
+    for (BookVocabulary.Entry entry : guide.corrections()) {
+      if (BookVocabulary.correct(source.toString(), List.of(entry)).equals(source.toString()))
+        continue;
+      int size = entry.heard().length() + entry.spelling().length();
+      int count = entry.heard().split("\\s+").length + entry.spelling().split("\\s+").length;
+      if (characters + size > 800 || words + count > 100) continue;
+      context.put(new JSONObject().put("heard", entry.heard()).put("spelling", entry.spelling()));
+      characters += size;
+      words += count;
+    }
+    return context;
+  }
+
   static void save(File file, Saved saved) throws Exception {
     JSONArray entries = new JSONArray();
     for (BookVocabulary.Entry entry : saved.entries())

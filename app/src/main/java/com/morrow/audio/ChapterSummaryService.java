@@ -246,6 +246,11 @@ public final class ChapterSummaryService extends Service {
         boolean lookup = job.optBoolean("attempted");
         if (!lookup && job.optInt("formatVersion", 1) == 2)
           job.put("priorSummaries", summaries.priorSummaries(book, index));
+        // Freeze the reviewed names with the attempt, so a resume looks up the same paid result.
+        if (!lookup)
+          job.put(
+              "reviewedSpellings",
+              BookWordGuide.reviewedContext(transcripts, book, values, index, chapter.duration));
         JSONObject payload =
             new JSONObject()
                 .put("chapterKey", job.getString("key"))
@@ -259,6 +264,8 @@ public final class ChapterSummaryService extends Service {
                     new JSONObject()
                         .put("chapter", job.getInt("cutoffChapter"))
                         .put("positionMs", job.getLong("cutoffPosition")));
+        if (job.has("reviewedSpellings"))
+          payload.put("reviewedSpellings", job.getJSONArray("reviewedSpellings"));
         if (job.optInt("formatVersion", 1) == 2)
           payload
               .put("formatVersion", 2)

@@ -1,4 +1,5 @@
 import createWhisper from './vendor/whisper.mjs';
+import {checkedHints} from './core.mjs';
 const URL='https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.en-q5_1.bin';
 const SHA='4baf70dd0d7c4247ba2b81fafd9c01005ac77c2f9ef064e00dcf195d0e2fdd2f',BYTES=59721011;
 let module,ready;
@@ -24,7 +25,7 @@ self.onmessage=async({data})=>{
   module.onSegment=(start,end,text)=>chunks.push({timestamp:[start,end],text:text.trim()});
   module.onProgress=progress=>self.postMessage({type:'download',file:'Transcribing locally',progress});
   const pointer=module._malloc(pcm.byteLength);if(!pointer)throw Error('Not enough memory for this section.');
-  try{module.HEAPF32.set(pcm,pointer/4);const result=module.ccall('decode_audio','number',['number','number','string'],[pointer,pcm.length,data.hints?'Names and terms: '+data.hints:'']);if(result!==0)throw Error('Recognition did not finish.');}finally{module._free(pointer);}
+  try{module.HEAPF32.set(pcm,pointer/4);const result=module.ccall('decode_audio','number',['number','number','string'],[pointer,pcm.length,checkedHints(data.hints||'')]);if(result!==0)throw Error('Recognition did not finish.');}finally{module._free(pointer);}
   self.postMessage({type:'result',result:{text:chunks.map(c=>c.text).join(' '),chunks}});
  }catch(error){self.postMessage({type:'error',message:'Local speech could not finish: '+(error?.message||String(error))});}
 };
