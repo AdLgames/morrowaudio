@@ -523,15 +523,22 @@ public final class TranscriptActivity extends CalmActivity {
     long limit = chapterCutoff();
     List<TranscriptTimeline.Cue> heard = TranscriptTimeline.heard(data.cues(), limit);
     List<BookVocabulary.Entry> corrections = activeCorrections();
-    generate.setVisibility(heard.isEmpty() && !busy ? View.VISIBLE : View.GONE);
     long coverage = TranscriptTimeline.nextStart(data.ranges(), limit);
+    boolean moreHeardAudio = limit - coverage >= 1000;
+    generate.setVisibility(!busy && moreHeardAudio ? View.VISIBLE : View.GONE);
+    generate.setText(
+        heard.isEmpty() ? "Create readable text · on this phone" : "Continue transcription · free");
+    generate.setContentDescription("Create offline English transcript");
     status.setText(
         (busy
             ? (workMessage.isEmpty() ? "Working…" : workMessage)
             : heard.isEmpty()
-                ? "No heard text yet · prepare it below or open •••"
-                : "Transcript through "
+                ? (moreHeardAudio
+                    ? "Ready to transcribe the next heard section · up to 5 minutes"
+                    : "Listen to a little more audio to create its text")
+                : (moreHeardAudio ? "Partly transcribed · " : "Text ready through ")
                     + Library.clock(coverage)
+                    + (moreHeardAudio ? " of " + Library.clock(limit) + " heard" : "")
                     + (corrections.isEmpty() ? "" : " · reviewed spellings")));
     StringBuilder text = new StringBuilder();
     lines.clear();
@@ -540,16 +547,22 @@ public final class TranscriptActivity extends CalmActivity {
       first--;
       size += heard.get(first).text().length() + 2;
     }
+    TranscriptTimeline.Cue previous = null;
+    int paragraphCharacters = 0;
     for (int n = first; n < heard.size(); n++) {
       TranscriptTimeline.Cue raw = heard.get(n);
       String corrected = BookVocabulary.correct(raw.text(), corrections);
       TranscriptTimeline.Cue cue =
           new TranscriptTimeline.Cue(
               raw.startMs(), raw.endMs(), corrected.length() <= 4000 ? corrected : raw.text());
+      String separator = TranscriptTimeline.readingSeparator(previous, cue, paragraphCharacters);
+      if (separator.contains("\n")) paragraphCharacters = 0;
+      text.append(separator);
       int at = text.length();
       text.append(cue.text());
       lines.add(new Line(cue, at, text.length()));
-      text.append("\n\n");
+      paragraphCharacters += separator.length() + cue.text().length();
+      previous = cue;
     }
     String value = text.toString();
     if (!value.equals(rendered)) {
@@ -710,17 +723,24 @@ public final class TranscriptActivity extends CalmActivity {
     EditText input = new EditText(this);
     input.setHint("Ask only about this selected passage");
     input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1000)});
-    new AlertDialog.Builder(this)
-        .setTitle("Ask about your selection")
-        .setView(input)
-        .setPositiveButton(
-            "Continue",
-            (dialog, which) -> {
-              String question = input.getText().toString().trim();
-              if (!question.isEmpty()) confirm("ask", cues, question);
-            })
-        .setNegativeButton("Cancel", null)
-        .show();
+    input.setTextColor(INK);
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Heard passage",
+            "Ask about this moment",
+            "Ask about the selected text. The answer uses only what you have heard.");
+    sheet.content.addView(input);
+    sheet.action(
+        "Continue",
+        true,
+        () -> {
+          String question = input.getText().toString().trim();
+          if (!question.isEmpty()) confirm("ask", cues, question);
+          else Toast.makeText(this, "Add a question first", Toast.LENGTH_SHORT).show();
+        });
+    sheet.action("Cancel", false, () -> {});
+    sheet.show();
   }
 
   private void confirm(String action, JSONArray cues, String question) {
@@ -745,7 +765,10 @@ public final class TranscriptActivity extends CalmActivity {
         tell("Your playback moved before the selected passage. Choose text you have reached.");
         return;
       }
+      JSONArray spellings = BookWordGuide.reviewedContext(store, book, cues);
       String cacheKey = book.id + "\n" + action + "\n" + cues + "\n" + question;
+      if (spellings.length() > 0) cacheKey += "\nreviewed-spellings\n" + spellings;
+      final String requestCacheKey = cacheKey;
       File cache = store.cached(cacheKey, action.equals("comic") ? ".jpg" : ".answer.json");
       if (cache.exists()) {
         if (action.equals("comic")) showImage(cache, cues);
@@ -768,88 +791,93 @@ public final class TranscriptActivity extends CalmActivity {
                   + " reopen free."
               : "Send only these available transcript excerpts ("
                   + source.length()
-                  + " characters) and your question to your private server and OpenAI. The recap"
+                  + " characters), any relevant reviewed book spellings and your question to your"
+                  + " private server and OpenAI. The recap"
                   + " covers this supplied text up to your playback cutoff, which may have gaps."
                   + " This uses one text request.";
-      new AlertDialog.Builder(this)
-          .setTitle(action.equals("comic") ? "Illustrate this passage?" : "Use this heard text?")
-          .setMessage(message)
-          .setPositiveButton(
-              action.equals("comic") ? "Generate one page" : "Send text",
-              (dialog, which) -> {
-                if (!stillHeard(cues)) {
-                  tell("Playback has moved before this passage. Select again.");
-                  return;
-                }
-                Cutoff c = cutoff();
-                runJob(
-                    () -> {
-                      JSONObject reply =
-                          client.request(
-                              "/companion",
-                              new JSONObject()
-                                  .put("action", action)
-                                  .put("cues", cues)
-                                  .put(
-                                      "cutoff",
-                                      new JSONObject()
-                                          .put("chapter", c.chapter)
-                                          .put("positionMs", c.position))
-                                  .put("question", question),
-                              null);
-                      if (action.equals("comic")) {
-                        byte[] image =
-                            android.util.Base64.decode(
-                                reply.getString("image"), android.util.Base64.DEFAULT);
-                        validateImage(image);
-                        TranscriptStore.write(cache, image);
-                        JSONObject meta =
-                            new JSONObject()
-                                .put("book", book.id)
-                                .put("cues", cues)
-                                .put(
-                                    "chapterSource",
-                                    book.chapters.get(cues.getJSONObject(0).getInt("chapter")).uri)
-                                .put("file", cache.getName())
-                                .put("label", source.substring(0, Math.min(70, source.length())));
-                        JSONArray chapterKeys = new JSONArray();
-                        Set<Integer> linkedChapters = new TreeSet<>();
-                        for (int n = 0; n < cues.length(); n++)
-                          linkedChapters.add(cues.getJSONObject(n).getInt("chapter"));
-                        for (int index : linkedChapters)
-                          chapterKeys.put(ChapterSummaryStore.key(book, book.chapters.get(index)));
-                        meta.put("chapterKeys", chapterKeys);
-                        TranscriptStore.write(
-                            store.cached(cacheKey, ".page.json"),
-                            meta.toString().getBytes(StandardCharsets.UTF_8));
-                        handler.post(
-                            () -> {
-                              if (alive) {
-                                if (stillHeard(cues)) showImage(cache, cues);
-                                else
-                                  tell(
-                                      "Page saved. It will be available when playback reaches its"
-                                          + " source passage again.");
-                              }
-                            });
-                      } else {
-                        AiTrialClient.parse(reply.toString(), source);
-                        TranscriptStore.write(
-                            cache, reply.toString().getBytes(StandardCharsets.UTF_8));
-                        handler.post(
-                            () -> {
-                              if (alive && stillHeard(cues))
-                                try {
-                                  showAnswer(reply, cues, source);
-                                } catch (Exception e) {
-                                  tell("The answer’s evidence could not be checked.");
-                                }
-                            });
-                      }
-                    });
-              })
-          .setNegativeButton("Keep on phone", null)
-          .show();
+      CalmSheet sheet =
+          new CalmSheet(
+              this,
+              "Optional AI",
+              action.equals("comic") ? "Illustrate this passage?" : "Use this heard text?",
+              message);
+      sheet.action(
+          action.equals("comic") ? "Generate one page" : "Send text · 1 request",
+          true,
+          () -> {
+            if (!stillHeard(cues)) {
+              tell("Playback has moved before this passage. Select again.");
+              return;
+            }
+            Cutoff c = cutoff();
+            runJob(
+                () -> {
+                  JSONObject reply =
+                      client.request(
+                          "/companion",
+                          new JSONObject()
+                              .put("action", action)
+                              .put("cues", cues)
+                              .put("reviewedSpellings", spellings)
+                              .put(
+                                  "cutoff",
+                                  new JSONObject()
+                                      .put("chapter", c.chapter)
+                                      .put("positionMs", c.position))
+                              .put("question", question),
+                          null);
+                  if (action.equals("comic")) {
+                    byte[] image =
+                        android.util.Base64.decode(
+                            reply.getString("image"), android.util.Base64.DEFAULT);
+                    validateImage(image);
+                    TranscriptStore.write(cache, image);
+                    JSONObject meta =
+                        new JSONObject()
+                            .put("book", book.id)
+                            .put("cues", cues)
+                            .put(
+                                "chapterSource",
+                                book.chapters.get(cues.getJSONObject(0).getInt("chapter")).uri)
+                            .put("file", cache.getName())
+                            .put("label", source.substring(0, Math.min(70, source.length())));
+                    JSONArray chapterKeys = new JSONArray();
+                    Set<Integer> linkedChapters = new TreeSet<>();
+                    for (int n = 0; n < cues.length(); n++)
+                      linkedChapters.add(cues.getJSONObject(n).getInt("chapter"));
+                    for (int index : linkedChapters)
+                      chapterKeys.put(ChapterSummaryStore.key(book, book.chapters.get(index)));
+                    meta.put("chapterKeys", chapterKeys);
+                    TranscriptStore.write(
+                        store.cached(requestCacheKey, ".page.json"),
+                        meta.toString().getBytes(StandardCharsets.UTF_8));
+                    handler.post(
+                        () -> {
+                          if (alive) {
+                            if (stillHeard(cues)) showImage(cache, cues);
+                            else
+                              tell(
+                                  "Page saved. It will be available when playback reaches its"
+                                      + " source passage again.");
+                          }
+                        });
+                  } else {
+                    AiTrialClient.parse(reply.toString(), source);
+                    TranscriptStore.write(cache, reply.toString().getBytes(StandardCharsets.UTF_8));
+                    handler.post(
+                        () -> {
+                          if (alive && stillHeard(cues))
+                            try {
+                              showAnswer(reply, cues, source);
+                            } catch (Exception e) {
+                              tell("The answer’s evidence could not be checked.");
+                            }
+                        });
+                  }
+                });
+          });
+      sheet.action("Keep on phone", false, () -> {});
+      sheet.show();
     } catch (Exception e) {
       tell("Could not prepare this passage: " + e.getMessage());
     }
@@ -887,10 +915,10 @@ public final class TranscriptActivity extends CalmActivity {
             restore
                 ? "Replaces current transcript text with the preserved previous version. The"
                     + " chapter recap will need regenerating."
-                : "Preserves the current transcript as the previous version, then clears it for new"
-                    + " recognition. Choose Accurate and save book spellings first for better"
-                    + " results. You can restore the previous text. The chapter recap will need"
-                    + " regenerating.");
+                : "Keeps a restorable copy, then starts again with up to 5 minutes of heard audio."
+                    + " Choose Accurate and save book spellings first for better results. Continue"
+                    + " here for more text, or use AI → choose chapter to process a whole chapter"
+                    + " in the background. The chapter recap will need regenerating.");
     sheet.action(
         restore ? "Restore previous transcript" : "Rebuild with current recogniser",
         true,
@@ -908,17 +936,13 @@ public final class TranscriptActivity extends CalmActivity {
                           new TranscriptStore.Data(new ArrayList<>(), new ArrayList<>()));
                     }
                   }
-                  handler.post(
-                      () -> {
-                        if (alive && chapter == index) {
-                          loadChapter();
-                          tell(
-                              restore
-                                  ? "Previous transcript restored."
-                                  : "Ready to transcribe again. Tap Transcribe on this phone, or"
-                                      + " select the chapter in AI for background processing.");
-                        }
-                      });
+                },
+                () -> {
+                  if (chapter != index) return;
+                  loadChapter();
+                  if (restore)
+                    Toast.makeText(this, "Previous transcript restored", Toast.LENGTH_SHORT).show();
+                  else transcribe();
                 }));
     sheet.action("Keep current text", false, () -> {});
     sheet.show();
@@ -935,11 +959,11 @@ public final class TranscriptActivity extends CalmActivity {
               + " screen before transcribing here.");
       return;
     }
-    long end = chapterCutoff(), from = TranscriptTimeline.nextStart(data.ranges(), end);
-    end = Math.min(end, from + 300000);
-    final long start = from, stop = end;
+    TranscriptTimeline.Range window =
+        TranscriptTimeline.nextWindow(data.ranges(), chapterCutoff(), 300000);
+    final long start = window.startMs(), stop = window.endMs();
     final int index = chapter;
-    if (end - from < 1000) {
+    if (stop - start < 1000) {
       tell("No new heard audio to transcribe. Listen a little further or choose another chapter.");
       return;
     }
@@ -988,12 +1012,12 @@ public final class TranscriptActivity extends CalmActivity {
                 () -> {
                   if (alive) {
                     if (chapter == index) loadChapter();
-                    tell(
-                        reply.cues().isEmpty()
-                            ? "No English speech found. This section is marked as processed. You"
-                                + " can import matching timed text."
-                            : "Offline transcript saved. No audio was uploaded and no API charge"
-                                + " was made.");
+                    if (reply.cues().isEmpty())
+                      tell(
+                          "No English speech found in this section. Try Accurate speech or import"
+                              + " matching timed text from the transcription menu.");
+                    else
+                      Toast.makeText(this, "Text saved on this phone", Toast.LENGTH_SHORT).show();
                   }
                 });
           } finally {
@@ -1176,6 +1200,10 @@ public final class TranscriptActivity extends CalmActivity {
   }
 
   private void runJob(Job job) {
+    runJob(job, null);
+  }
+
+  private void runJob(Job job, Runnable afterSuccess) {
     if (busy) return;
     busy = true;
     cancelRequested = false;
@@ -1186,9 +1214,11 @@ public final class TranscriptActivity extends CalmActivity {
     io.execute(
         () -> {
           jobThread = Thread.currentThread();
+          boolean complete = false;
           try {
             if (cancelRequested) throw new InterruptedIOException("Transcription cancelled");
             job.run();
+            complete = true;
           } catch (Exception e) {
             handler.post(
                 () -> {
@@ -1205,6 +1235,7 @@ public final class TranscriptActivity extends CalmActivity {
           } finally {
             jobThread = null;
             Thread.interrupted();
+            final boolean succeeded = complete;
             handler.post(
                 () -> {
                   if (alive) {
@@ -1214,6 +1245,7 @@ public final class TranscriptActivity extends CalmActivity {
                     cancelLocal.setVisibility(View.GONE);
                     generate.setEnabled(true);
                     render();
+                    if (succeeded && !cancelRequested && afterSuccess != null) afterSuccess.run();
                   }
                 });
           }

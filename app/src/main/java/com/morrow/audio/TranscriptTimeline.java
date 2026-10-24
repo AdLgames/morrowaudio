@@ -19,6 +19,31 @@ final class TranscriptTimeline {
 
   record Range(long startMs, long endMs) {}
 
+  /** Display-only separation: keep decoder fragments together without inventing punctuation. */
+  static String readingSeparator(Cue previous, Cue next, int paragraphCharacters) {
+    if (previous == null) return "";
+    boolean sentenceEnd = previous.text().trim().matches("(?s).*[.!?…][\\\"'’”»)]*$");
+    return next.startMs() - previous.endMs() >= 1800 || (paragraphCharacters >= 300 && sentenceEnd)
+        ? "\n\n"
+        : " ";
+  }
+
+  /** Union length, so overlap cannot make an incomplete replacement look more complete. */
+  static long coveredDuration(List<Range> ranges) {
+    List<Range> ordered = new ArrayList<>(ranges);
+    ordered.sort(Comparator.comparingLong(Range::startMs));
+    long covered = 0, end = 0;
+    for (Range range : ordered) {
+      long start = Math.max(0, range.startMs());
+      if (range.endMs() <= start) continue;
+      if (range.endMs() > end) {
+        covered += range.endMs() - Math.max(start, end);
+        end = range.endMs();
+      }
+    }
+    return covered;
+  }
+
   static List<Cue> heard(List<Cue> cues, long cutoff) {
     List<Cue> result = new ArrayList<>();
     for (Cue cue : cues) if (cue.endMs <= cutoff) result.add(cue);
