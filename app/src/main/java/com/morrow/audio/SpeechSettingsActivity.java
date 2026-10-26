@@ -62,7 +62,8 @@ public final class SpeechSettingsActivity extends CalmActivity {
       gap(body, 8);
       body.addView(
           text(
-              "Optional · up to 100 words. Enter spellings you already know, separated by commas."
+              "Optional · up to 100 words. Enter short names or terms you already know, separated"
+                  + " by commas (up to 4 words per name)."
                   + " Approved Book words are included automatically. These guide decoding; they"
                   + " cannot guarantee the correct name or teach a new pronunciation.",
               13,
@@ -83,17 +84,30 @@ public final class SpeechSettingsActivity extends CalmActivity {
               () -> {
                 String value = hints.getText().toString().trim();
                 if (value.length() > 800
-                    || (!value.isEmpty() && value.split("\\s+").length > 100)) {
+                    || (!value.isEmpty() && value.split("[\\s,;]+").length > 100)) {
                   CalmSheet.message(
                       this,
                       "A smaller guide",
                       "Keep spelling hints within 100 words and 800 characters.");
                   return;
                 }
+                for (String entry : value.split("[,;\\r\\n]+")) {
+                  if (!entry.isBlank()
+                      && BookVocabulary.spellingHints(entry, java.util.List.of()).isEmpty()) {
+                    CalmSheet.message(
+                        this,
+                        "Use short names or terms",
+                        "Separate names with commas. Each name can have up to 4 words and 60"
+                            + " characters, using letters, spaces, apostrophes or hyphens.");
+                    return;
+                  }
+                }
+                String normalized = BookVocabulary.spellingHints(value, java.util.List.of());
                 getSharedPreferences("speech_quality", 0)
                     .edit()
-                    .putString("words:" + book.id, value)
+                    .putString("words:" + book.id, normalized)
                     .apply();
+                hints.setText(normalized);
                 Toast.makeText(this, "Spellings saved on this phone", Toast.LENGTH_SHORT).show();
               }));
       gap(body, 20);

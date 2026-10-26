@@ -1,14 +1,42 @@
 package com.morrow.audio;
 
+import java.text.Normalizer;
 import java.util.*;
 import java.util.regex.*;
 import java.util.stream.Collectors;
 
-/** Reviewed, exact-phrase display corrections. Never changes the speech decoder or source cues. */
+/** Reviewed names for display corrections and spelling hints; original source cues stay intact. */
 final class BookVocabulary {
   record Entry(String heard, String spelling, String pronunciation) {}
 
   private static final String LETTERS = "[\\p{L}\\p{M}]+(?:[ '\u2019-][\\p{L}\\p{M}]+)*";
+
+  /** Complete, unique names only: a truncated name is a misleading decoder hint. */
+  static String spellingHints(String manual, List<Entry> reviewed) {
+    List<String> candidates = new ArrayList<>();
+    if (manual != null) candidates.addAll(Arrays.asList(manual.split("[,;\\r\\n]+")));
+    for (Entry entry : reviewed) candidates.add(entry.spelling());
+    Set<String> seen = new HashSet<>();
+    StringBuilder result = new StringBuilder();
+    int words = 0;
+    for (String candidate : candidates) {
+      String value =
+          Normalizer.normalize(candidate, Normalizer.Form.NFC).trim().replaceAll("\\s+", " ");
+      int count = value.isEmpty() ? 0 : value.split(" ").length;
+      if (count == 0
+          || count > 4
+          || value.length() > 60
+          || !value.matches(LETTERS)
+          || seen.contains(value.toLowerCase(Locale.ROOT))) continue;
+      int separator = result.length() == 0 ? 0 : 2;
+      if (words + count > 100 || result.length() + separator + value.length() > 800) continue;
+      seen.add(value.toLowerCase(Locale.ROOT));
+      if (separator > 0) result.append(", ");
+      result.append(value);
+      words += count;
+    }
+    return result.toString();
+  }
 
   static void validate(List<Entry> entries, String source) {
     if (entries.size() > 8) throw new IllegalArgumentException("Too many book words");

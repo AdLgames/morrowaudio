@@ -91,4 +91,37 @@ public class TranscriptTimelineTest {
     assertEquals(2000, TranscriptTimeline.nextStart(ranges, 2000));
     assertEquals(0, TranscriptTimeline.nextStart(List.of(), 1000));
   }
+
+  @Test
+  public void readableParagraphsJoinFragmentsWithoutChangingSourceWords() {
+    var first = new TranscriptTimeline.Cue(0, 1000, "She reached for");
+    var second = new TranscriptTimeline.Cue(1100, 2000, "the key.");
+    var third = new TranscriptTimeline.Cue(2100, 3000, "It was cold.");
+    assertEquals("", TranscriptTimeline.readingSeparator(null, first, 0));
+    assertEquals(" ", TranscriptTimeline.readingSeparator(first, second, 400));
+    assertEquals(" ", TranscriptTimeline.readingSeparator(second, third, 30));
+    assertEquals("\n\n", TranscriptTimeline.readingSeparator(second, third, 300));
+    assertEquals(
+        "\n\n",
+        TranscriptTimeline.readingSeparator(
+            third, new TranscriptTimeline.Cue(5000, 6000, "Much later"), 50));
+    assertEquals(
+        "\n\n",
+        TranscriptTimeline.readingSeparator(
+            new TranscriptTimeline.Cue(0, 1000, "‘Wait!’"), second, 300));
+    assertEquals("She reached for", first.text());
+  }
+
+  @Test
+  public void processedCoverageCountsOverlappingAndDisjointRangesOnce() {
+    assertEquals(
+        5000,
+        TranscriptTimeline.coveredDuration(
+            List.of(
+                new TranscriptTimeline.Range(4000, 6000),
+                new TranscriptTimeline.Range(0, 2000),
+                new TranscriptTimeline.Range(1000, 3000),
+                new TranscriptTimeline.Range(0, 2000))));
+    assertEquals(0, TranscriptTimeline.coveredDuration(List.of()));
+  }
 }

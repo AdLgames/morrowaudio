@@ -67,4 +67,38 @@ public class BookVocabularyTest {
     assertEquals(raw.get(0).startMs(), fixed.get(0).startMs());
     assertEquals(raw.get(0).endMs(), fixed.get(0).endMs());
   }
+
+  @Test
+  public void spellingHintsDeduplicateNamesAndKeepReviewedOrderingWithoutLeadingCommas() {
+    assertEquals(
+        "Paul Atreides, Muad’Dib, Jessica, Shai-Hulud",
+        BookVocabulary.spellingHints(
+            " Paul   Atreides, Muad’Dib\nJessica; PAUL ATREIDES",
+            List.of(entry("paul", "Paul Atreides"), entry("worm", "Shai-Hulud"))));
+    assertEquals(
+        "Kwisatz Haderach",
+        BookVocabulary.spellingHints("", List.of(entry("quiz at", "Kwisatz Haderach"))));
+    assertEquals("Éowyn", BookVocabulary.spellingHints("E\u0301owyn, Éowyn", List.of()));
+  }
+
+  @Test
+  public void spellingHintsNeverTruncateNamesOrAcceptNonNamePayloads() {
+    assertEquals(
+        "Duncan Idaho",
+        BookVocabulary.spellingHints(
+            "<script>bad</script>, a phrase with too many separate words, Duncan Idaho, 123",
+            List.of()));
+    List<BookVocabulary.Entry> longNames = new ArrayList<>();
+    for (char c = 'a'; c <= 'z'; c++) longNames.add(entry("name", String.valueOf(c).repeat(60)));
+    String hints = BookVocabulary.spellingHints("", longNames);
+    assertTrue(hints.length() <= 800);
+    for (String name : hints.split(", ")) assertEquals(60, name.length());
+    assertEquals(12, hints.split(", ").length);
+
+    List<BookVocabulary.Entry> manyWords = new ArrayList<>();
+    for (char c = 'a'; c <= 'z'; c++) manyWords.add(entry("name", c + " a b c"));
+    String bounded = BookVocabulary.spellingHints("", manyWords);
+    assertEquals(100, bounded.split("\\s+").length);
+    assertFalse(bounded.contains("z a b c"));
+  }
 }
