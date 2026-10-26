@@ -201,7 +201,7 @@ final class IllustrationComposer {
     return busy;
   }
 
-  private String text(JSONArray cues) throws JSONException {
+  private static String text(JSONArray cues) throws JSONException {
     StringBuilder value = new StringBuilder();
     for (int n = 0; n < cues.length(); n++) {
       if (n > 0) value.append('\n');
@@ -426,7 +426,7 @@ final class IllustrationComposer {
     }
   }
 
-  private void validateChoice(JSONArray all, JSONArray choice) throws Exception {
+  private static void validateChoice(JSONArray all, JSONArray choice) throws Exception {
     if (choice.length() == 0 || choice.length() > 1000 || text(choice).length() > 2500)
       throw new IOException("The AI did not return a valid source passage.");
     int start = -1;
@@ -487,7 +487,7 @@ final class IllustrationComposer {
   private void requestPlan(JSONArray cues, int pictures, String scope) {
     if (busy || activity.otherWorkRunning() || !valid(cues)) return;
     try {
-      if (cues.length() < pictures || cues.length() > 10000 || text(cues).length() > 100000) {
+      if (cues.length() == 0 || cues.length() > 10000 || text(cues).length() > 100000) {
         tell(
             "Choose fewer pictures or a longer passage with separate moments (up to 100,000"
                 + " characters).");
@@ -503,19 +503,31 @@ final class IllustrationComposer {
               .put("action", "storyboard")
               .put("scope", scope)
               .put("count", pictures)
+              .put("allowFewerScenes", true)
               .put("durationMs", book.chapters.get(index).duration)
               .put("book", bookInfo)
               .put("cues", cues)
-              .put("contextCues", source.get())
               .put("cutoff", boundary)
               .put("question", "");
+      if (scope.equals("passage")) payload.put("contextCues", source.get());
+      JSONArray reviewedSpellings = BookWordGuide.reviewedContext(store, book, cues);
+      if (reviewedSpellings.length() > 0) payload.put("reviewedSpellings", reviewedSpellings);
       File cache = store.cached("storyboard-v2\n" + identity + "\n" + payload, ".storyboard.json");
-      if (cache.isFile()) {
+      // Completed plans from earlier app versions still reopen without another paid request.
+      JSONObject legacyPayload = new JSONObject(payload.toString());
+      legacyPayload.remove("allowFewerScenes");
+      legacyPayload.put("contextCues", source.get());
+      File legacyCache =
+          store.cached("storyboard-v2\n" + identity + "\n" + legacyPayload, ".storyboard.json");
+      // A changed reviewed spelling guide must not silently reopen a plan made without it.
+      File savedPlan = cache.isFile() || reviewedSpellings.length() > 0 ? cache : legacyCache;
+      if (savedPlan.isFile()) {
         JSONObject plan =
             new JSONObject(
                 new String(
-                    TranscriptStore.read(new FileInputStream(cache), 400000),
+                    TranscriptStore.read(new FileInputStream(savedPlan), 400000),
                     StandardCharsets.UTF_8));
+        validatePlan(plan, cues, pictures);
         reviewPlan(plan, cues, boundary, index, identity, bookInfo);
         return;
       }
@@ -523,10 +535,13 @@ final class IllustrationComposer {
           new CalmSheet(
               activity,
               "Optional AI storyboard",
-              "Plan " + pictures + " story moment(s)",
-              "Send book title, author and this chapter’s heard text to your private AI server. One"
+              "Plan up to " + pictures + " story moment(s)",
+              "Send book title, author, reviewed spellings and this chapter’s heard text to your"
+                  + " private AI server. One"
                   + " of the shared 20 daily text attempts creates a visual guide and distinct"
-                  + " source moments. No images yet. Failed attempts count; no automatic retries."
+                  + " source moments. If the text supports fewer moments, you can use that smaller"
+                  + " plan without another text request. No images yet. Failed attempts count; no"
+                  + " automatic retries."
                   + " Model knowledge is not live research; you can correct the guide before"
                   + " creating pictures.");
       sheet.action(
@@ -564,12 +579,15 @@ final class IllustrationComposer {
     }
   }
 
-  private void validatePlan(JSONObject plan, JSONArray all, int pictures) throws Exception {
+  static void validatePlan(JSONObject plan, JSONArray all, int pictures) throws Exception {
     if (plan.getString("guide").isBlank() || plan.getString("guide").length() > 5000)
       throw new IOException("Invalid visual guide.");
     JSONArray scenes = plan.getJSONArray("scenes");
-    if (scenes.length() != pictures)
-      throw new IOException("Try fewer pictures; this text needs distinct moments.");
+    if (pictures < 1 || pictures > 3 || scenes.length() < 1 || scenes.length() > pictures)
+      throw new IOException(
+          "The storyboard did not contain a supported number of distinct moments.");
+    if (plan.has("requestedCount") && plan.getInt("requestedCount") != pictures)
+      throw new IOException("The storyboard does not match the requested picture count.");
     long last = -1;
     for (int n = 0; n < scenes.length(); n++) {
       JSONObject scene = scenes.getJSONObject(n);
@@ -577,8 +595,10 @@ final class IllustrationComposer {
       validateChoice(all, chosen);
       if (chosen.getJSONObject(0).getLong("startMs") < last
           || scene.getInt("number") != n + 1
-          || scene.getInt("total") != pictures
+          || scene.getInt("total") != scenes.length()
+          || scene.getString("title").isBlank()
           || scene.getString("title").length() > 120
+          || scene.getString("direction").isBlank()
           || scene.getString("direction").length() > 800)
         throw new IOException("Invalid story order.");
       last = chosen.getJSONObject(chosen.length() - 1).getLong("endMs");
@@ -594,13 +614,26 @@ final class IllustrationComposer {
       JSONObject bookInfo) {
     try {
       JSONArray scenes = plan.getJSONArray("scenes");
-      validatePlan(plan, original, scenes.length());
+      int requested = plan.optInt("requestedCount", scenes.length());
+      validatePlan(plan, original, requested);
       CalmSheet sheet =
           new CalmSheet(
               activity,
               "Chapter " + (index + 1) + " · storyboard",
               "Your chapter in " + scenes.length() + " picture(s)",
               book.title + " · " + book.author);
+      if (scenes.length() < requested) {
+        sheet.text(
+            "This text supports "
+                + scenes.length()
+                + " distinct story moment(s), out of the "
+                + requested
+                + " requested. Review this smaller plan below. No extra text request is needed;"
+                + " only the pictures you confirm will use image attempts.",
+            14,
+            CalmActivity.INK);
+        sheet.space(16);
+      }
       sheet.text("VISUAL GUIDE · REVIEW & EDIT", 11, activity.SAGE);
       EditText guide = new EditText(activity);
       guide.setText(plan.getString("guide"));
@@ -690,21 +723,22 @@ final class IllustrationComposer {
                 state.setText(
                     "Creating picture " + number + " of " + pictures + "… Keep this screen open.");
             });
+        JSONArray reviewedSpellings = BookWordGuide.reviewedContext(store, book, cues);
         String key = book.id + "\ngraphic-v2\n" + cues + "\n" + bookInfo + "\n" + scene;
+        if (reviewedSpellings.length() > 0) key += "\nreviewedSpellings\n" + reviewedSpellings;
         File image = store.cached(key, ".jpg");
         if (!image.exists()) {
-          JSONObject reply =
-              client.request(
-                  "/companion",
-                  new JSONObject()
-                      .put("action", "comic")
-                      .put("variation", variation)
-                      .put("book", bookInfo)
-                      .put("scene", scene)
-                      .put("cues", cues)
-                      .put("cutoff", boundary)
-                      .put("question", ""),
-                  null);
+          JSONObject payload =
+              new JSONObject()
+                  .put("action", "comic")
+                  .put("variation", variation)
+                  .put("book", bookInfo)
+                  .put("scene", scene)
+                  .put("cues", cues)
+                  .put("cutoff", boundary)
+                  .put("question", "");
+          if (reviewedSpellings.length() > 0) payload.put("reviewedSpellings", reviewedSpellings);
+          JSONObject reply = client.request("/companion", payload, null);
           byte[] bytes =
               android.util.Base64.decode(reply.getString("image"), android.util.Base64.DEFAULT);
           validateImage(bytes);
@@ -740,7 +774,8 @@ final class IllustrationComposer {
                   saved
                       + " picture"
                       + (saved == 1 ? "" : "s")
-                      + " saved with this chapter. Open saved pictures below to view them.");
+                      + " saved with this chapter. Open the studio menu → Saved chapter pictures to"
+                      + " view them.");
               refresh();
               refreshAllowance();
               if (saved > 0 && identity.equals(sourceIdentity) && !pages.isEmpty())

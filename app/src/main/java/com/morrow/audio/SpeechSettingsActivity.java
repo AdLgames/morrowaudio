@@ -16,7 +16,7 @@ public final class SpeechSettingsActivity extends CalmActivity {
   private final Handler handler = new Handler(Looper.getMainLooper());
   private volatile boolean alive = true, downloading;
   private volatile HttpURLConnection connection;
-  private TextView state, accurate;
+  private TextView state, accurate, leave;
   private Library.Book book;
 
   @Override
@@ -62,7 +62,8 @@ public final class SpeechSettingsActivity extends CalmActivity {
       gap(body, 8);
       body.addView(
           text(
-              "Optional · up to 100 words. Enter spellings you already know, separated by commas."
+              "Optional · up to 100 words. Enter short names or terms you already know, separated"
+                  + " by commas (up to 4 words per name)."
                   + " Approved Book words are included automatically. These guide decoding; they"
                   + " cannot guarantee the correct name or teach a new pronunciation.",
               13,
@@ -83,22 +84,36 @@ public final class SpeechSettingsActivity extends CalmActivity {
               () -> {
                 String value = hints.getText().toString().trim();
                 if (value.length() > 800
-                    || (!value.isEmpty() && value.split("\\s+").length > 100)) {
+                    || (!value.isEmpty() && value.split("[\\s,;]+").length > 100)) {
                   CalmSheet.message(
                       this,
                       "A smaller guide",
                       "Keep spelling hints within 100 words and 800 characters.");
                   return;
                 }
+                for (String entry : value.split("[,;\\r\\n]+")) {
+                  if (!entry.isBlank()
+                      && BookVocabulary.spellingHints(entry, java.util.List.of()).isEmpty()) {
+                    CalmSheet.message(
+                        this,
+                        "Use short names or terms",
+                        "Separate names with commas. Each name can have up to 4 words and 60"
+                            + " characters, using letters, spaces, apostrophes or hyphens.");
+                    return;
+                  }
+                }
+                String normalized = BookVocabulary.spellingHints(value, java.util.List.of());
                 getSharedPreferences("speech_quality", 0)
                     .edit()
-                    .putString("words:" + book.id, value)
+                    .putString("words:" + book.id, normalized)
                     .apply();
+                hints.setText(normalized);
                 Toast.makeText(this, "Spellings saved on this phone", Toast.LENGTH_SHORT).show();
               }));
       gap(body, 20);
     }
-    body.addView(button("Back", false, this::finish));
+    leave = button("", false, this::leaveSetup);
+    body.addView(leave);
     render();
   }
 
@@ -106,6 +121,12 @@ public final class SpeechSettingsActivity extends CalmActivity {
     accurate.setText(
         WhisperSpeech.ready(this) ? "Use Accurate · Whisper" : "Download Accurate · about 60 MB");
     accurate.setEnabled(!downloading);
+    leave.setText(
+        downloading
+            ? "Stop download & leave setup"
+            : getIntent().getBooleanExtra("welcomeSetup", false)
+                ? "Continue to the quick tour"
+                : "Back");
     state.setText(
         downloading
             ? state.getText()
@@ -117,6 +138,28 @@ public final class SpeechSettingsActivity extends CalmActivity {
     if (downloading) return;
     getSharedPreferences("speech_quality", 0).edit().putString("engine", engine).apply();
     render();
+  }
+
+  private void leaveSetup() {
+    if (!downloading) {
+      finish();
+      return;
+    }
+    CalmSheet sheet =
+        new CalmSheet(
+            this,
+            "Local speech",
+            "Stop this download?",
+            "Fast stays available. You can download Whisper again from Settings → Local speech"
+                + " setup.");
+    sheet.action("Keep downloading", true, () -> {});
+    sheet.action("Stop & continue", false, this::finish);
+    sheet.show();
+  }
+
+  @Override
+  public void onBackPressed() {
+    leaveSetup();
   }
 
   private void confirmDownload() {
@@ -203,7 +246,7 @@ public final class SpeechSettingsActivity extends CalmActivity {
                         e instanceof InterruptedIOException
                             ? "Download stopped. Your current recogniser is still available."
                             : "Could not finish the verified download. Check your connection and"
-                                  + " storage, then try again.");
+                                + " storage, then try again.");
                   }
                 });
           } finally {

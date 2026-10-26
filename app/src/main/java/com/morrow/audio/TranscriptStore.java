@@ -51,8 +51,16 @@ final class TranscriptStore {
 
   void archive(Library.Book book, Library.Chapter chapter) throws Exception {
     File file = path(book, chapter);
-    if (file.isFile())
-      write(new File(file + ".previous"), read(new AtomicFile(file).openRead(), 10000000));
+    if (!file.isFile()) return;
+    Data current = loadFile(file);
+    // Repeating Rebuild after a cancelled or empty attempt must keep the useful original.
+    if (current.cues().isEmpty()) return;
+    File previous = new File(file + ".previous");
+    Data preserved = loadFile(previous);
+    if (!preserved.cues().isEmpty()
+        && TranscriptTimeline.coveredDuration(current.ranges())
+            < TranscriptTimeline.coveredDuration(preserved.ranges())) return;
+    write(previous, read(new AtomicFile(file).openRead(), 10000000));
   }
 
   private Data loadFile(File file) throws Exception {

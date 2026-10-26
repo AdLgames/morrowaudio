@@ -28,7 +28,7 @@ final class WhisperSpeech {
   static String hints(Context c, Library.Book book) {
     if (book == null) return "";
     String manual = c.getSharedPreferences("speech_quality", 0).getString("words:" + book.id, "");
-    StringBuilder words = new StringBuilder(manual);
+    List<BookVocabulary.Entry> reviewed = new ArrayList<>();
     try {
       BookWordGuide.Saved guide =
           BookWordGuide.load(BookWordGuide.path(new TranscriptStore(c), book));
@@ -39,13 +39,12 @@ final class WhisperSpeech {
           heard &= ChapterScenes.reached(book, cue.getInt("chapter"), cue.getLong("endMs"));
         }
       if (heard)
-        for (int index : guide.approved())
-          words.append(", ").append(guide.entries().get(index).spelling());
+        // Keep guide order stable; an unordered set can change which names fit the limit.
+        for (int index = 0; index < guide.entries().size(); index++)
+          if (guide.approved().contains(index)) reviewed.add(guide.entries().get(index));
     } catch (Exception ignored) {
     }
-    String[] tokens = words.toString().trim().split("\\s+");
-    String value = String.join(" ", Arrays.copyOf(tokens, Math.min(100, tokens.length)));
-    return value.length() > 800 ? value.substring(0, 800) : value;
+    return BookVocabulary.spellingHints(manual, reviewed);
   }
 
   interface Sink {
